@@ -1,0 +1,152 @@
+<script>
+    //Slot Machine Class
+    class slotMachine{
+        constructor(){
+            this.winnings = 0;
+            this.slots = [0,0,0]; //Store numbers for slots
+            //Create div that will hold slot machine
+            this.div = document.createElement("div");
+            this.div.className = "slot";
+            var slots = document.getElementById("slots");
+            slots.appendChild(this.div);
+            //Create image objects and add to slot machine
+            this.imgs = [];
+            for(var i = 0; i < 3; i++){
+                this.imgs[i] = new Image();
+                this.imgs[i].width = "64";
+                this.imgs[i].height = "64";
+                this.imgs[i].src = "0.png";
+                this.imgs[i].alt = "0";
+                this.imgs[i].float = "left";
+                this.div.appendChild(this.imgs[i]);
+            }
+            //Create text box that shows winnings
+            this.text = document.createElement("p");
+        }
+        play(){ //Play the slots
+            for(var i = 0; i < 3; i++){ //Generate all three random numbers
+                this.slots[i] = Math.floor(Math.random() * (7 - 0 + 1));
+                //Add images of numbers to screen
+                this.imgs[i].src = "./srcimgs/"+this.slots[i]+".png";
+                this.imgs[i].alt = this.slots[i];
+                this.div.appendChild(this.imgs[i]);
+            }
+            //Use numbers of slots to determine winnings
+            if(this.slots[0] == 0 && this.slots[1] == 0){ //If slots 1 and 2 are 0s
+                if(this.slots[2] == 0){ //If slot 3 is a 0 (0,0,0)
+                    this.winnings = 14;
+                }else{ //If slot 3 is not a 0 (0,0,X)
+                    this.winnings = 3;
+                }
+            }else if(this.slots[0] == this.slots[1]){ //If slots 1 and 2 are the same
+                if(this.slots[1] == this.slots[2]){ //If slot 3 is the same as 1 and 2 (X,X,X)
+                    this.winnings = 7;
+                }else{ //If slot 3 is not the same as 1 and 2 (X,X,-)
+                    this.winnings = 2;
+                }
+            }else if(this.slots[0] == 0 &&(this.slots[1] != 0 || this.slots[2] != 0)){ //If only slot 1 is a 0 (0,-,-)
+                this.winnings = 1;
+            }else{ //Any other comvination
+                this.winnings = 0;
+            }
+            //Print winnings on screen
+            if(this.winnings > 0){
+                this.text.innerHTML = "You won $"+this.winnings+"!";
+            }else{
+                this.text.innerHTML = "You Lose.";
+            }
+            this.div.appendChild(this.text);
+        }
+    }
+    class main{
+        constructor(instances){
+            this.money = 100;
+             //Write money to screen
+            this.text = document.getElementById("Money");
+            this.text.innerHTML += "Current Money: " + this.money + "<br>";
+            //Create slot machines
+            this.slots = [];
+            for(var i = 0; i < instances; i++){
+                this.slots[i] = new slotMachine;
+            }
+        }
+        playAll(){ //Play the slots
+            event.preventDefault();
+            var instances = document.getElementById("amount").elements[0].value;
+            for(let i in this.slots){ //Delete the initial batch of slots
+                this.slots[i].div.remove();
+                delete this.slots[i];
+            }
+            for(let i = 0; i < instances; i++){ //Add new slots and play each slot
+                if(this.money == 0){ //If the player has no more money, don't spin.
+                    this.text.innerHTML = "You have no more money. <br>";
+                    return;
+                }
+                this.slots[i] = new slotMachine;
+                this.money -= 1;
+                this.slots[i].play();
+                this.money += this.slots[i].winnings;
+            }
+            this.text.innerHTML = "New Money: " + this.money + "<br>"; //Update money on screen
+        }
+    }
+    function play(){ //Global function to call playAll from main
+        mymain.playAll();
+    }
+    //Images source: https://www.thecompliancecenter.com/product/dc-100x4w/
+</script>
+<html>
+    <head>
+        <title>Palm Rat Studios Online - Lets Go Gambling!</title>
+        <link rel="stylesheet" href="../styles.css">
+        <style>
+            div.screen{
+                width: 1500px;
+                height: 500px;
+                overflow: auto;
+                text-align: center;
+                background-color: white;
+                border-width: 3px;
+                border-color: lime;
+                border-style: solid;
+                padding-bottom: 10px;
+                margin-top: 5px;
+                margin-right: 5px;
+                margin-left: 5px;
+            }
+            div.slot{
+                width: 207px;
+                height: 100px;
+                text-align: center;
+                border: 1px solid red;
+                float: left;
+            }
+            div.slots{
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="flexBox" 
+        style="justify-content: center;">
+            <div class="screen" id="screen">
+                <h1>Lets Go Gambling!</h1>
+                <p>How many slots do you wish to spin?</p>
+                <form id="amount">
+                    <label>Enter an Amount:</label>
+                    <input type="text" name="slots" value="3" style="width:100px"><br><br>
+                    <button onclick="play()">Spin</button>
+                </form>
+                <p id="Money"></p>
+                <div class="slots" id="slots"></div>
+            </div>
+            <script>
+                var mymain = new main(3);
+            </script>
+            <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+        </div>
+    </body>
+</html>

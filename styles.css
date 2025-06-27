@@ -1,0 +1,78 @@
+body{
+    background-color: lime;
+    text-align: center;
+}
+div.box{
+    width: 1500px;
+    height: max-content;
+    background-color: black;
+    margin: auto;
+}
+div.flexBox{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: left;
+    background-color: black;
+    width: 1500px;
+    margin: auto;
+    float: center;
+}
+div.game{
+    width: 291px;
+    height: 291px;
+    border: 3px solid lime;
+    float: left;
+    margin-top: 2px;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    margin-left: 2px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+button.norm{
+    width: 150px;
+    height: 30px;
+    background-color: black;
+    border: 3px solid lime;
+    color: lime;
+    font-size: 20px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+div.title{
+    width: 270px;
+    height: 50px;
+    font-size: 30px;
+    color: lime;
+    text-align: center;
+    float: center;
+    margin: auto;
+    margin-top: 3px;
+}
+div.img{
+    width: 290px;
+    height: 200px;
+    background-size: contain;
+    float: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+img.thumbNail{
+    margin-left: auto;
+    margin-right: auto;
+    display: block;    
+    border: 3px solid lime;
+}
+button.play{
+    width: 100px;
+    height: 40px;
+    border: 3px solid lime;
+    background-color: black;
+    font-size: 20px;
+    color: lime;
+    margin-bottom: 3px;
+}
