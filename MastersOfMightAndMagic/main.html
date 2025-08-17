@@ -1,0 +1,523 @@
+<script>
+    class base {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+    class creature extends base {
+        constructor(x, y) {
+            super(x, y);
+            this.HP = 0;
+            this.MHP = 0;
+            this.ATK = 0;
+            this.DEF = 0;
+            this.PIC = null;
+            this.HealthBar = null;
+        }
+        update(newX, newY) {
+            ctx.clearRect(this.x + 1, this.y + 1, 62, 62);
+            this.x = newX;
+            this.y = newY;
+            if(this.PIC == null){
+                return;
+            }
+            ctx.drawImage(this.PIC, this.x, this.y, 64, 64);
+            //ctx.fillStyle = "#FF0000";
+            //ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
+        }
+        die(){
+            ctx.clearRect(this.x + 1, this.y + 1, 62, 62);
+            delete this.PIC;
+        }
+    }
+    class monster extends creature {
+        constructor(x, y) {
+            super(x, y);
+        }
+        move(up, down, right, left) {
+            var direction = Math.floor(Math.random() * 4);
+            /*direction determines which direction the monster chooses to go
+                0 = up
+                1 = down
+                2 = right
+                3 = left
+                5 = It attacked instead of moving
+                6 = It did nothing
+            Once it moves, the function returns. The return value tells the main how to change the grid.
+            */
+            switch (direction) {
+                case 0:
+                    if (up == null) { //If there is nothing in the chosen space
+                        this.update(this.x, this.y - 64); //Move to it
+                        return 0;
+                    } else if (up == 1) { //If the player is there
+                        return 5; //Attack!
+                    } else { //If it's anything else, do nothing
+                        return 6;
+                    }
+                case 1:
+                    if (down == null) {
+                        this.update(this.x, this.y + 64);
+                        return 1;
+                    } else if (down == 1) {
+                        return 5;
+                    } else {
+                        return 6;
+                    }
+                case 2:
+                    if (right == null) {
+                        this.update(this.x + 64, this.y);
+                        return 2;
+                    } else if (right == 1) {
+                        return 5;
+                    } else {
+                        return 6;
+                    }
+                case 3:
+                    if (left == null) {
+                        this.update(this.x - 64, this.y);
+                        return 3;
+                    } else if (left == 1) {
+                        return 5;
+                    } else {
+                        return 6;
+                    }
+                default:
+                    break;
+            }
+        }
+    }
+    class bubbleMan extends monster { //Easy, low health, low attack, low defense
+        constructor(x, y) {
+            super(x, y);
+            this.HP = 40;
+            this.MHP = 40;
+            this.ATK = 2;
+            this.DEF = 2;
+            this.PIC = new Image();
+            this.PIC.src = "./srcimgs/BubbleMan.png";
+            this.PIC.onload = () => {
+                ctx.drawImage(this.PIC, this.x, this.y, 64, 64);
+            }
+            //Add health bar
+            ctx.fillStyle = "#FF0000";
+            ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
+        }
+    }
+    class mooseRat extends monster { //Hard, high health, high attack, high defense
+        constructor(x, y) {
+            super(x, y);
+            this.HP = 65;
+            this.MHP = 65;
+            this.ATK = 7;
+            this.DEF = 6;
+            this.PIC = new Image();
+            this.PIC.src = "./srcimgs/MooseRat.png";
+            this.PIC.onload = () => {
+                ctx.drawImage(this.PIC, this.x, this.y, 64, 64);
+            }
+            //Add health bar
+            ctx.fillStyle = "#FF0000";
+            ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
+        }
+    }
+    class cobraFiend extends monster { //Annoying, high health, low attack, high defense
+        constructor(x, y) {
+            super(x, y);
+            this.HP = 90;
+            this.MHP = 90;
+            this.ATK = 2;
+            this.DEF = 6;
+            this.PIC = new Image();
+            this.PIC.src = "./srcimgs/CobraFiend.png";
+            this.PIC.onload = () => {
+                ctx.drawImage(this.PIC, this.x, this.y, 64, 64);
+            }
+            //Add health bar
+            ctx.fillStyle = "#FF0000";
+            ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
+        }
+    }
+    class player extends creature {
+        constructor(x, y) {
+            super(x, y);
+            this.HP = 75;
+            this.MHP = 75;
+            this.ATK = 5;
+            this.DEF = 5;
+            this.PIC = new Image();
+            this.PIC.src = "./srcimgs/Hero.png";
+            this.PIC.onload = () => {
+                ctx.drawImage(this.PIC, this.x, this.y, 64, 64);
+            };
+            //Add health bar
+            ctx.fillStyle = "#FF0000";
+            ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
+        }
+        drinkPotion(x,y){
+            ctx.clearRect(64*x+1,64*y+1, 62, 62);
+            this.HP = this.MHP;
+        }
+    }
+    class mountain extends base {
+        constructor(x, y) {
+            super(x, y);
+            ctx.lineJoin = "miter";
+            ctx.fillStyle = "#D3D3D3";
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x+64,this.y);
+            ctx.lineTo(this.x+32,this.y+32);
+            ctx.lineTo(this.x,this.y);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle = "#A9A9A9";
+            ctx.moveTo(this.x+64,this.y);
+            ctx.lineTo(this.x+64,this.y+64);
+            ctx.lineTo(this.x+32,this.y+32);
+            ctx.lineTo(this.x+64,this.y);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle = "#778899";
+            ctx.moveTo(this.x,this.y+64);
+            ctx.lineTo(this.x+64,this.y+64);
+            ctx.lineTo(this.x+32,this.y+32);
+            ctx.lineTo(this.x,this.y+64);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle = "#696969";
+            ctx.moveTo(this.x,this.y);
+            ctx.lineTo(this.x,this.y+64);
+            ctx.lineTo(this.x+32,this.y+32);
+            ctx.lineTo(this.x,this.y);
+            ctx.fill();
+        }
+    }
+    class tree extends base{
+        constructor(x,y){
+            super(x,y);
+            //So, I lied. This creates two small trees instead of 1
+            ctx.lineJoin = "miter";
+            for(let i = 0; i < 2; i++){
+                ctx.fillStyle = "#008000";
+                ctx.beginPath();
+                ctx.moveTo(this.x+8+(i*36),this.y+10+(i*10));
+                ctx.lineTo(this.x+16+(i*36),this.y+10+(i*10));
+                ctx.lineTo(this.x+16+(i*36),this.y+15+(i*10));
+                ctx.lineTo(this.x+8+(i*36),this.y+15+(i*10));
+                ctx.lineTo(this.x+8+(i*36),this.y+10+(i*10))
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(this.x+(i*36),this.y+15+(i*10));
+                ctx.lineTo(this.x+24+(i*36),this.y+15+(i*10));
+                ctx.lineTo(this.x+24+(i*36),this.y+30+(i*10));
+                ctx.lineTo(this.x+(i*36),this.y+30+(i*10));
+                ctx.lineTo(this.x+(i*36),this.y+15+(i*10));
+                ctx.fill();
+                ctx.beginPath();
+                ctx.fillStyle = "#8B4513";
+                ctx.moveTo(this.x+8+(i*36),this.y+30+(i*10));
+                ctx.lineTo(this.x+16+(i*36),this.y+30+(i*10));
+                ctx.lineTo(this.x+16+(i*36),this.y+50+(i*10));
+                ctx.lineTo(this.x+8+(i*36),this.y+50+(i*10));
+                ctx.lineTo(this.x+8+(i*36),this.y+30+(i*10));
+                ctx.fill();
+            }
+        }
+    }
+    class main {
+        constructor() {
+            //Grid to store the mountains, and locations of the monsters, player, and potions
+            this.grid = [];
+            for (let i = 0; i < 9; i++) {
+                this.grid[i] = [];
+                for (let j = 0; j < 12; j++) {
+                    this.grid[i][j] = null;
+                }
+            }
+            this.createWalls();
+            this.hero = new player(128, 192);
+            /*Logic for how the grid works:
+                Mountains will be stored in the grid as mountans objects
+                All other things in the grid are numbers that follow this code:
+                    null = nothing
+                    1 = player
+                    2 = monster
+                    3 = health potion
+                When something moves, its coordinates on the grid will be replaced with null.
+                Then, the coordinate that it moved to will become what it is in the code.
+                If it tries to move somewhere that is not null on the grid, interactions will happen.
+            */
+            this.grid[3][2] = 1; //Add the player to the grid.
+            //Create the monsters and add them to the grid
+            this.monsters = [];
+            this.monsters[0] = new bubbleMan(256, 448);
+            this.monsters[1] = new bubbleMan(512, 192);
+            this.monsters[2] = new mooseRat(64, 320);
+            this.monsters[3] = new mooseRat(640, 128);
+            this.monsters[4] = new cobraFiend(384, 64);
+            this.monsters[5] = new cobraFiend(576, 384);
+            this.grid[7][4] = 2;
+            this.grid[3][8] = 2;
+            this.grid[5][1] = 2;
+            this.grid[2][10] = 2;
+            this.grid[1][6] = 2;
+            this.grid[6][9] = 2;
+            this.deadMonsters = 0;
+            //Add potions to the grid
+            this.addPotion(192,64);
+            this.addPotion(576,448);
+
+            //Update contiously based on the buttons the player presses
+            this.update();
+        }
+        createWalls() { //Add the mountains to the screen
+            for (let i = 0; i < 12; i++) { //Create top and bottom mountains
+                this.grid[0][i] = new mountain(i * 64, 0);
+                this.grid[8][i] = new mountain(i * 64, 512);
+            }
+            for (let i = 1; i < 9; i++) { //Create left and right mountains
+                this.grid[i][0] = new mountain(0, i * 64);
+                this.grid[i][11] = new mountain(704, i * 64);
+            }
+            this.grid[3][4] = new tree(256,192);
+            this.grid[4][3] = new tree(192,256);
+            this.grid[1][8] = new tree(512,64);
+            this.grid[2][9] = new tree(576,128);
+            this.grid[2][7] = new tree(448,128);
+            this.grid[6][8] = new tree(512,384);
+            this.grid[7][8] = new tree(512,448);
+            this.grid[5][9] = new tree(576,320);
+        }
+        update() {
+            window.addEventListener('keydown', (e) => {
+                if(this.hero == null){
+                    return;
+                }
+                var x = this.hero.x / 64;
+                var y = this.hero.y / 64;
+                if (e.key == 'ArrowUp' || e.key == 'w') {
+                    if (this.grid[y - 1][x] == null || this.grid[y - 1][x] == 3) {
+                        this.grid[y][x] = null;
+                        if (this.grid[y - 1][x] == 3) {
+                            this.hero.drinkPotion(x,y-1);
+                        }
+                        this.grid[y - 1][x] = 1;
+                        this.hero.update(x * 64, y * 64 - 64);
+                    } else if (this.grid[y - 1][x] == 2) { //Attack the monster
+                        this.attack(x, y - 1);
+                    }
+                    this.moveMonsters(); //Monsters only move if the player pressed a valid button.
+                } else if (e.key == 'ArrowDown' || e.key == 's') {
+                    if (this.grid[y + 1][x] == null || this.grid[y + 1][x] == 3) {
+                        this.grid[y][x] = null;
+                        if (this.grid[y + 1][x] == 3) {
+                            this.hero.drinkPotion(x,y+1);
+                        }
+                        this.grid[y + 1][x] = 1;
+                        this.hero.update(x * 64, y * 64 + 64);
+                    } else if (this.grid[y + 1][x] == 2) {
+                        this.attack(x, y + 1);
+                    }
+                    this.moveMonsters();
+                } else if (e.key == 'ArrowRight' || e.key == 'd') {
+                    if (this.grid[y][x + 1] == null || this.grid[y][x + 1] == 3) {
+                        this.grid[y][x] = null;
+                        if (this.grid[y][x + 1] == 3) {
+                            this.hero.drinkPotion(x+1,y);
+                        }
+                        this.grid[y][x + 1] = 1;
+                        this.hero.update(x * 64 + 64, y * 64);
+                    } else if (this.grid[y][x + 1] == 2) {
+                        this.attack(x + 1, y);
+                    }
+                    this.moveMonsters();
+                } else if (e.key == 'ArrowLeft' || e.key == 'a') {
+                    if (this.grid[y][x - 1] == null || this.grid[y][x - 1] == 3) {
+                        this.grid[y][x] = null;
+                        if (this.grid[y][x - 1] == 3) {
+                            this.hero.drinkPotion(x-1,y);
+                        }
+                        this.grid[y][x - 1] = 1;
+                        this.hero.update(x * 64 - 64, y * 64);
+                    } else if (this.grid[y][x - 1] == 2) {
+                        this.attack(x - 1, y);
+                    }
+                    this.moveMonsters();
+                }
+                if(this.deadMonsters == 6){
+                    this.win();
+                    return;
+                }
+            });
+        }
+        attack(x, y) { //Player attacks monster
+            for (let i = 0; i < 6; i++) {
+                if(this.monsters[i] == null){
+                    continue;
+                }
+                if (this.monsters[i].x == x * 64 && this.monsters[i].y == y * 64) {
+                    var damage = Math.max(this.hero.ATK - this.monsters[i].DEF, 1);
+                    if(this.monsters[i].HP - damage <= 0){
+                        this.killMonster(i);
+                        this.deadMonsters += 1;
+                    }else{
+                        this.monsters[i].HP -= damage;
+                        this.monsters[i].update(this.monsters[i].x, this.monsters[i].y);
+                    }
+                    break;
+                }
+            }
+        }
+        moveMonsters() {
+            for (let i = 0; i < 6; i++) {
+                if(this.monsters[i] == null){ //If the monster is dead, don't make it move
+                    continue;
+                }
+                var x = this.monsters[i].x / 64;
+                var y = this.monsters[i].y / 64;
+                //Move the monster and use its return value to change the grid
+                var up = this.grid[y - 1][x];
+                var down = this.grid[y + 1][x];
+                var right = this.grid[y][x + 1];
+                var left = this.grid[y][x - 1];
+                var change = this.monsters[i].move(up, down, right, left);
+                switch (change) {
+                    case 0:
+                        this.grid[y - 1][x] = 2;
+                        this.grid[y][x] = null;
+                        break;
+                    case 1:
+                        this.grid[y + 1][x] = 2;
+                        this.grid[y][x] = null;
+                        break;
+                    case 2:
+                        this.grid[y][x + 1] = 2;
+                        this.grid[y][x] = null;
+                        break;
+                    case 3:
+                        this.grid[y][x - 1] = 2;
+                        this.grid[y][x] = null;
+                        break;
+                    case 5: //Player was attacked
+                        var damage = Math.max(this.monsters[i].ATK - this.hero.DEF, 1);
+                        if(this.hero.HP - damage <= 0){
+                            this.lose();
+                        }else{
+                            this.hero.HP -= damage;
+                            this.hero.update(this.hero.x, this.hero.y);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        killMonster(i){
+            this.grid[this.monsters[i].y/64][this.monsters[i].x/64] = null;
+            this.monsters[i].die();
+            delete this.monsters[i];
+            this.monsters[i] = null;
+        }
+        lose(){
+            for(let i = 0; i < 6; i++){
+                if(this.monsters[i] != null){ //If the monster isn't dead, remove it from the screen by killing it.
+                    this.killMonster(i);
+                }
+            }
+            this.hero.die();
+            delete this.hero;
+            ctx.font = "100px Arial";
+            ctx.fillStyle = "#000000";
+            ctx.fillText("You Died.", 192, 192);
+        }
+        win(){
+            this.hero.die();
+            delete this.hero;
+            ctx.font = "35px Arial";
+            ctx.fillStyle = "#000000";
+            ctx.fillText("You Win! You are a master of Might and Magic!",16,192);
+        }
+        addPotion(x,y){
+            ctx.fillStyle = "#8B4513";
+            ctx.beginPath();
+            ctx.moveTo(x+26,y+30);
+            ctx.lineTo(x+26,y+27);
+            ctx.lineTo(x+34,y+27);
+            ctx.lineTo(x+34,y+30);
+            ctx.lineTo(x+26,y+30);
+            ctx.fill();
+            ctx.fillStyle = "#B0C4DE";
+            ctx.beginPath();
+            ctx.moveTo(x+25,y+35);
+            ctx.lineTo(x+25,y+30);
+            ctx.lineTo(x+35,y+30);
+            ctx.lineTo(x+35,y+35);
+            ctx.lineTo(x+25,y+35);
+            ctx.fill();
+            ctx.fillStyle = "#FF0000";
+            ctx.beginPath();
+            ctx.moveTo(x+25,y+45);
+            ctx.lineTo(x+25,y+35);
+            ctx.lineTo(x+35,y+35);
+            ctx.lineTo(x+35,y+45);
+            ctx.lineTo(x+25,y+45);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x+15,y+50);
+            ctx.arc(x+30,y+50,10,0,360*Math.PI/180,false);
+            ctx.fill();
+            this.grid[y/64][x/64] = 3;
+        }
+    }
+</script>
+<html>
+    <head>
+        <title>Masters of Might and Magic</title>
+        <link rel="stylesheet" href="../styles.css">
+    </head>
+    <body>
+        <div class="box">
+            <h1 class="title">Masters of Might and Magic</h1>
+        </div>
+        <div class="flexBox">
+            <canvas width="768" height="576" id="mycanvas" style="background-color:limegreen"></canvas>
+            <div class="story">
+                <h3 class="text">
+                    Welcome to Masters of Might and Magic!!<br><br>
+                    In this game, you play a young warrior who seeks to become a Master of Might and Magic!<br>
+                    However, that is no simple task, as that requires the you to kill all the monsters that live in the Green Grass Hills.<br>
+                    Knowing this and ready to face the danger that awaits you, you pick up your hammer and get ready to slay everything you find.<br>
+                    Only then will you become a Master of Might and Magic!<br>
+                    <br>
+                    How to play:<br>
+                    To play the game, use WASD or the arrow keys to control the hero. The hero and the monsters each take turns moving.<br>
+                    To attack a monster, attempt to move on top of it. This will count as an attack, and the monster will lose an amount of health depending on its defense.<br>
+                    There are six monsters total; two BubbleMen, two MooseRats, and two CobraFiends.<br>
+                    BubbleMen are easy. They have low health, low defense, and low attack.<br>
+                    CobraFiends are more annoying than anything. They have low attack, but high health and defense.<br>
+                    MooseRats are the hardest. They have high health, defense, AND attack.<br>
+                    There are 2 health potions on the field which will restore the hero back up to max HP.<br>
+                    To win the game, you must kill all six monsters.<br>
+                    If the hero is killed, you lose.<br>
+                    GLHF!<br>
+                    <br>
+                    Image Credits:<br>
+                    Credits to "The Might and Magic Wikia" for all the images in this game. Links to individual image sources within the wiki are below.<br>
+                    Hero: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Mad_dwarf_(MM3)">https://mightandmagic.fandom.com/wiki/Mad_dwarf_(MM3)</a><br>
+                    BubbleMan: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Bubble_man">https://mightandmagic.fandom.com/wiki/Bubble_man</a><br>
+                    MooseRat: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Moose_rat">https://mightandmagic.fandom.com/wiki/Moose_rat</a><br>
+                    CobraFiend: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Cobra_fiend">https://mightandmagic.fandom.com/wiki/Cobra_fiend</a><br>
+                </h3>
+            </div>
+            <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+            <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            <script>
+                var canvas = document.getElementById('mycanvas');
+                var ctx = canvas.getContext('2d');
+                var mymain = new main;
+            </script>
+        </div>
+    </body>
+</html>

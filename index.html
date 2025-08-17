@@ -2,57 +2,67 @@
 <html>
     <head>
         <title>Palm Rat Studios Online Home</title>
+        <script>
+            //Add games to the screen
+            function createScreen(){
+                //Store game data: title of game, thumbnail, and link to the game
+                //Limitation: No images bigger than 290x200
+                var games = [
+                    {
+                        title: "Lets Go Gambling!",
+                        thumbnail: "LetsGoGambling!/srcimgs/LetsGoGambling!.png",
+                        link: "LetsGoGambling!/main.html"
+                    },
+                    {
+                        title: "Masters of Might and Magic",
+                        thumbNail: "MastersOfMightAndMagic/srcimgs/ThumbNail.png",
+                        link: "MastersOfMightAndMagic/main.html"
+                    }
+                ];
+                //Get div where the games will be stored
+                var gamesDiv = document.getElementById("games");
+                for(let i = 0; i < games.length; i++){
+                    //Create box for game
+                    var newGame = document.createElement("div");
+                    newGame.className = "game";
+                    //Add title
+                    var title = document.createElement("div");
+                    title.className = "title";
+                    title.innerHTML = games[i].title;
+                    newGame.appendChild(title);
+                    //Add thumbnail
+                    var thumbNail = document.createElement("div");
+                    thumbNail.className = "img";
+                    var image = document.createElement("img");
+                    image.className = "thumbNail";
+                    image.src = games[i].thumbnail;
+                    thumbNail.appendChild(image);
+                    newGame.appendChild(thumbNail);
+                    //Add play button
+                    var play = document.createElement("button");
+                    play.className = "play";
+                    play.addEventListener("click", function(){
+                        window.location.href=games[i].link;
+                    });
+                    play.innerHTML="Play";
+                    newGame.appendChild(play);
+                    //Add game to screen
+                    gamesDiv.appendChild(newGame);
+                }
+            }
+        </script>
         <link rel="stylesheet" href="styles.css">
     </head>
     <body>
         <div class="box">
-            <h1 style="font-size: 50px; color: lime;">Welcome to Palm Rat Studios Online!</h1>
+            <h1 class="title">Welcome to Palm Rat Studios Online!</h1>
+            <h2 style="font-size: 20px; color: lime;">Creator's YouTube Channel: 
+                <a class="credit" target="_blank" href="https://www.youtube.com/channel/UCosizdyDi56_7TyrDKkVNsQ">Jakie the Star</a>
+            </h2>
         </div>
-        <div class="flexBox" id="games" style="justify-content: space-evenly;">
-            <div class="game">
-                <div class="title">Lets Go Gambling!</div>
-                <div class="img"> <!--No images bigger than 290x200-->
-                    <img class="thumbNail" src="LetsGoGambling!/srcimgs/LetsGoGambling!.png"/>
-                </div>
-                <button class="play" onclick="window.location.href='LetsGoGambling!/main.html'">Play</button>
-            </div>
-
-                        <div class="game">
-                <div class="title">Lets Go Gambling!</div>
-                <div class="img"> <!--No images bigger than 290x200-->
-                    <img class="thumbNail" src="LetsGoGambling!/srcimgs/LetsGoGambling!.png"/>
-                </div>
-                <button class="play" onclick="window.location.href='LetsGoGambling!/main.html'">Play</button>
-            </div>
-                                    <div class="game">
-                <div class="title">Lets Go Gambling!</div>
-                <div class="img"> <!--No images bigger than 290x200-->
-                    <img class="thumbNail" src="LetsGoGambling!/srcimgs/LetsGoGambling!.png"/>
-                </div>
-                <button class="play" onclick="window.location.href='LetsGoGambling!/main.html'">Play</button>
-            </div>
-                                    <div class="game">
-                <div class="title">Lets Go Gambling!</div>
-                <div class="img"> <!--No images bigger than 290x200-->
-                    <img class="thumbNail" src="LetsGoGambling!/srcimgs/LetsGoGambling!.png"/>
-                </div>
-                <button class="play" onclick="window.location.href='LetsGoGambling!/main.html'">Play</button>
-            </div>
-
-                                                <div class="game">
-                <div class="title">Lets Go Gambling!</div>
-                <div class="img"> <!--No images bigger than 290x200-->
-                    <img class="thumbNail" src="LetsGoGambling!/srcimgs/LetsGoGambling!.png"/>
-                </div>
-                <button class="play" onclick="window.location.href='LetsGoGambling!/main.html'">Play</button>
-            </div>
-                                                            <div class="game">
-                <div class="title">Lets Go Gambling!</div>
-                <div class="img"> <!--No images bigger than 290x200-->
-                    <img class="thumbNail" src="LetsGoGambling!/srcimgs/LetsGoGambling!.png"/>
-                </div>
-                <button class="play" onclick="window.location.href='LetsGoGambling!/main.html'">Play</button>
-            </div>
-        </div>
+        <div class="flexBox" id="games"></div>
+        <script>
+            createScreen();
+        </script>
     </body>
 </html>
