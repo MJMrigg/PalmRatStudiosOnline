@@ -97,7 +97,7 @@ div.creditLinks{
 a.credit{
     color: lime;
 }
-canvas{
+canvas.default{
     border: 3px solid lime;
     margin-top: 5px;
     margin-bottom: 5px;

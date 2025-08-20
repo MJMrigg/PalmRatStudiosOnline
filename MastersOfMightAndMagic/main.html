@@ -23,8 +23,8 @@
                 return;
             }
             ctx.drawImage(this.PIC, this.x, this.y, 64, 64);
-            //ctx.fillStyle = "#FF0000";
-            //ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
+            ctx.fillStyle = "#FF0000";
+            ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
         }
         die(){
             ctx.clearRect(this.x + 1, this.y + 1, 62, 62);
@@ -482,7 +482,7 @@
             <h1 class="title">Masters of Might and Magic</h1>
         </div>
         <div class="flexBox">
-            <canvas width="768" height="576" id="mycanvas" style="background-color:limegreen"></canvas>
+            <canvas width="768" height="576" id="mycanvas" class="default" style="background-color:limegreen"></canvas>
             <div class="story">
                 <h3 class="text">
                     Welcome to Masters of Might and Magic!!<br><br>

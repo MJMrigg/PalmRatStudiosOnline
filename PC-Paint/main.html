@@ -1,0 +1,495 @@
+<html lang="en">
+    <head>
+        <title>PC Paint Program</title>
+        <script id="2dVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 fragColor;
+            void main(){
+                gl_Position = a_position;
+                fragColor = a_color;
+                gl_PointSize = 1.0;
+            }
+        </script>
+        <script id="2dFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 fragColor;
+            void main(){
+                gl_FragColor = vec4(fragColor,1);
+            }
+        </script>
+        <script>
+            class webGlInterface{
+                constructor(){
+                    gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
+                    gl.clearColor(1,1,1,1);
+                    gl.clear(gl.CLEAR_BUFFER_BIT);
+
+                    var vertexShaderSource = document.getElementById("2dVertexShader").text;
+                    var fragementShaderSource = document.getElementById("2dFragmentShader").text;
+                    var vertexShader = this.createShader(gl.VERTEX_SHADER,vertexShaderSource);
+                    var fragmentShader = this.createShader(gl.FRAGMENT_SHADER,fragementShaderSource);
+                    this.program = this.createProgram(vertexShader,fragmentShader);
+                    gl.useProgram(this.program);
+                }
+                createShader(type,source){
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader,source);
+                    gl.compileShader(shader);
+
+                    var sucess = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
+                    if(sucess){
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+                createProgram(vs,fs){
+                    var program = gl.createProgram();
+                    gl.attachShader(program,vs);
+                    gl.attachShader(program,fs);
+                    gl.linkProgram(program);
+                    
+                    var sucess = gl.getProgramParameter(program,gl.LINK_STATUS);
+                    if(sucess){
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram(program);
+                }
+            }
+            class shape{
+                constructor(shape,fill){
+                    this.positions = [];
+                    this.positionBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.positions),gl.STATIC_DRAW);
+                    this.isFinished = false;
+                    this.primitiveType = gl.POINTS; //Variable that will store what kind of shape it is. It starts out as a GL_POINTS
+                    this.shapeFill = shape+fill; //Determine the shape and fill type of the current shape
+                    /* shapeFill key
+                        0 = Box Outline
+                        1 = Circle Outline
+                        2 = Line Outline
+                        3 = Triangle Outline
+                        4 = N-Polygon Outline
+                        5 = Box Fill
+                        6 = Circle Fill
+                        7 = Line Fill
+                        8 = Triangle Fill
+                        9 = N-Polygon Fill
+                    */
+                }
+                render(program){
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.positionBuffer);
+
+                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6*Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset);
+
+                    var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    offset += 3*Float32Array.BYTES_PER_ELEMENT;
+                    gl.vertexAttribPointer(colorAttributeLocation,size,type,normalize,stride,offset);
+
+                    var count = this.positions.length/6;
+                    offset = 0;
+                    gl.drawArrays(this.primitiveType, offset, count);
+                }
+                addPoint(x,y,color){
+                    //Before adding the positions, some shapes require calculations first
+                    switch(this.shapeFill){
+                        case 0: //Box Outline
+                            if(this.positions.length/6 == 1){ //If the top left corner was already set, add the top right
+                                this.positions.push(x,this.positions[1],0,this.positions[3],this.positions[4],this.positions[5]);
+                                this.primitiveType = gl.LINE_LOOP;
+                                this.isFinished = true;
+                            }
+                            break;
+                        case 1: //Circle Outline
+                            //Circles are a special case, as when the center is set, you can't just simply add a point the way you do other shapes
+                            //Instead we have to calculate a radius and add 40 points using that radius
+                            if(this.positions.length/6 == 1){
+                                var radius = Math.sqrt((this.positions[0]-x)*(this.positions[0]-x) + (this.positions[1]-y)*(this.positions[1]-y));
+                                for(let i = 0; i <= 40; i++){
+                                    this.positions.push(
+                                        this.positions[0]+radius*Math.cos((i*9)*(Math.PI/180)),
+                                        this.positions[1]+radius*Math.sin((i*9)*(Math.PI/180)),0);
+                                    this.addColor(color);
+                                }
+                                this.primitiveType = gl.LINE_LOOP;
+                                this.isFinished = true;
+                                gl.bindBuffer(gl.ARRAY_BUFFER,this.positionBuffer);
+                                gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.positions), gl.STATIC_DRAW);
+                                return; //Hence why the program returns
+                            }
+                            break;
+                        case 2: //Line Outline
+                            if(this.positions.length/6 >= 1){
+                                this.primitiveType = gl.LINE_STRIP;
+                            }
+                            break;
+                        case 3: //Triangle Outline
+                            if(this.positions.length/6 == 1){
+                                this.primitiveType = gl.LINE_STRIP;
+                            }else if(this.positions.length/6 == 2){
+                                this.primitiveType = gl.LINE_LOOP;
+                                this.isFinished = true;
+                            }
+                            break;
+                        case 4: //N-Polygon Outline
+                            if(this.positions.length >= 1){
+                                this.primitiveType = gl.LINE_LOOP;
+                            }
+                            break;
+                        case 5: //Box Fill
+                            if(this.positions.length/6 == 1){ //If the top left corner was already set, add the top right
+                                this.positions.push(x,this.positions[1],0,this.positions[3],this.positions[4],this.positions[5]);
+                                this.primitiveType = gl.TRIANGLE_FAN;
+                                this.isFinished = true;
+                            }
+                            break;
+                        case 6: //Circle Fill
+                            //Circles are a special case, as when the center is set, you can't just simply add a point the way you do other shapes
+                            //Instead we have to calculate a radius and add 40 points using that radius
+                            if(this.positions.length/6 == 1){
+                                var radius = Math.sqrt((this.positions[0]-x)*(this.positions[0]-x) + (this.positions[1]-y)*(this.positions[1]-y));
+                                for(let i = 0; i <= 40; i++){
+                                    this.positions.push(
+                                        this.positions[0]+radius*Math.cos((i*9)*(Math.PI/180)),
+                                        this.positions[1]+radius*Math.sin((i*9)*(Math.PI/180)),0);
+                                    this.addColor(color);
+                                }
+                                this.primitiveType = gl.TRIANGLE_FAN;
+                                this.isFinished = true;
+                                gl.bindBuffer(gl.ARRAY_BUFFER,this.positionBuffer);
+                                gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.positions), gl.STATIC_DRAW);
+                                return; //Hence why the program returns
+                            }
+                            break;
+                        case 7: //Line Fill
+                            if(this.positions.length/6 >= 1){
+                                this.primitiveType = gl.LINE_STRIP;
+                            }
+                            break;
+                        case 8: //Triangle Fill
+                            if(this.positions.length/6 == 1){
+                                    this.primitiveType = gl.LINES;
+                                }else if(this.positions.length/6 == 2){
+                                    this.primitiveType = gl.TRIANGLES;
+                                    this.isFinished = true;
+                                }
+                                break;
+                        case 9: //N-Polygon Fill
+                            if(this.positions.length/6 >= 1){
+                                this.primitiveType = gl.LINE_LOOP;
+                            }else if(this.positions.length/6 == 2){
+                                this.primitiveType = gl.TRIANGLE_FAN;
+                            }
+                            break;
+                    }
+                    this.positions.push(x,y,0); //Add position
+                    this.addColor(color); //Add color
+                    //Last minute calculations for boxes
+                    if((this.shapeFill == 0 || this.shapeFill == 5) && this.positions.length/6 == 3){
+                        //If all three other corners already exist, add the bottom left corner
+                        this.positions.push(this.positions[0],y,0,this.positions[3],this.positions[4],this.positions[5]);
+                    }
+                    //Buffer data
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.positions), gl.STATIC_DRAW);
+                }
+                addColor(color){
+                    switch(color){ //Add color
+                        case 1: //Black
+                            this.positions.push(0,0,0);
+                            break;
+                        case 2: //Red
+                            this.positions.push(1,0,0);
+                            break;
+                        case 3: //Green
+                            this.positions.push(0,1,0);
+                            break;
+                        case 4: //Blue
+                            this.positions.push(0,0,1);
+                            break;
+                        case 5: //Yellow
+                            this.positions.push(1,1,0);
+                            break;
+                        case 6: //Purple
+                            this.positions.push(1,0,1);
+                            break;
+                        case 7: //Cyan
+                            this.positions.push(0,1,1);
+                            break;
+                        case 8: //White
+                            this.positions.push(1,1,1);
+                            break;
+                    }
+                }
+                tempAdd(x,y,color){
+                    if(this.isFinished){
+                        return;
+                    }
+                    this.addPoint(x,y,color);
+                    this.primitiveType = gl.LINE_LOOP;
+                    this.isFinished = false;
+                }
+                tempRemove(){
+                    if(this.isFinished){
+                        return;
+                    }
+                    if(this.shapeFill <= 1 || this.shapeFill == 5 || this.shapeFill == 6){ //Boxes and Circles
+                        this.positions.splice(6,this.positions.length-6);
+                    }else{ //Lines, Triangles, and N-Polygons
+                        this.positions.splice(this.positions.length-6,6);
+                    }
+                    //Override the buffer
+                    gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
+                }
+            }
+            class main{
+                constructor(){
+                    this.webGl = new webGlInterface;
+                    this.program = this.webGl.program;
+                    this.shapes = [];
+                    this.curShape = null;
+                    this.curColor = null;
+                    this.curFill = null;
+                    this.background = 8; //Set background color to white
+                }
+                calculate(clickX,clickY){ //Convert canvas coordinates to webGl coordinates
+                    var rect = canvas.getBoundingClientRect();
+                    var realX = clickX - rect.left;
+                    var realY = clickY - rect.top;
+                    var x = -1 + 2*(realX/canvas.width);
+                    var y = -1 + 2*((canvas.height - realY)/canvas.height);
+                    return [x,y];
+                }
+                addShape(event){
+                    //If the player didn't select a shape, color, and fill option, return
+                    if(this.curShape == null || this.curColor == null || this.curFill == null){
+                        return;
+                    }
+                    const coordinates = this.calculate(event.clientX,event.clientY);
+                    if(this.shapes.length == 0 || this.shapes[this.shapes.length-1].isFinished){
+                        //New Shape
+                        var temp = new shape(this.curShape,this.curFill);
+                        temp.addPoint(coordinates[0],coordinates[1],this.curColor);
+                        this.shapes.push(temp);
+                    }else{
+                        //Add to current shape
+                        this.shapes[this.shapes.length - 1].addPoint(coordinates[0],coordinates[1],this.curColor);
+                        //Don't render the central point of circle outlines
+                        if(this.shapes[this.shapes.length - 1].shapeFill == 1 && this.shapes[this.shapes.length - 1].positions.length/6 == 42){
+                            this.shapes[this.shapes.length - 1].positions.splice(0,6);
+                            gl.bindBuffer(gl.ARRAY_BUFFER,this.shapes[this.shapes.length - 1].positionBuffer);
+                            gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.shapes[this.shapes.length - 1].positions), gl.STATIC_DRAW);
+                        }
+                    }
+                    this.renderAll();
+                }
+                renderAll(){
+                    switch(this.background){ //Render background color
+                        case 1:
+                            gl.clearColor(0,0,0,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 2:
+                            gl.clearColor(1,0,0,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 3:
+                            gl.clearColor(0,1,0,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 4:
+                            gl.clearColor(0,0,1,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 5:
+                            gl.clearColor(1,1,0,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 6:
+                            gl.clearColor(1,0,1,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 7:
+                            gl.clearColor(0,1,1,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                        case 8:
+                            gl.clearColor(1,1,1,1);
+                            gl.clear(gl.COLOR_BUFFER_BIT);
+                            break;
+                    }
+                    for(let i = 0; i < this.shapes.length; i++){ //Render shapes
+                        this.shapes[i].render(this.program);
+                    }
+                }
+                changeShape(shape){
+                    //Only change the selected shape if the user isn't in the middle of drawing a shape
+                    if(this.shapes.length == 0 || this.shapes[this.shapes.length - 1].isFinished){
+                        this.curShape = Number(shape.value);
+                    }
+                }
+                changeColor(color){
+                    this.curColor = Number(color.value);
+                }
+                changeFill(fill){
+                    //Only change the selected fill if the user isn't in the middle of drawing the shape
+                    if(this.shapes.length == 0 || this.shapes[this.shapes.length - 1].isFinished){
+                        this.curFill = Number(fill.value);
+                    }
+                }
+                changeBackground(color){
+                    this.background = Number(color.value);
+                    this.renderAll();
+                }
+                reset(){ //Reset viewport
+                    gl.clearColor(1,1,1,1);
+                    gl.clear(gl.CLEAR_BUFFER_BIT);
+                    while(this.shapes.length != 0){
+                        delete this.shapes[this.shapes.length - 1];
+                        this.shapes.pop();
+                    }
+                    //Reset all options to none
+                    document.getElementById("shape").selectedIndex = 0;
+                    document.getElementById("color").selectedIndex = 0;
+                    document.getElementById("fill").selectedIndex = 0;
+                    document.getElementById("background").selectedIndex = 0;
+                    this.curShape = null;
+                    this.curColor = null;
+                    this.curFill = null;
+                    this.background = 8; //Set background color to white
+                }
+                finishOrCancelShape(event){
+                    if(this.shapes.length == 0 || this.shapes[this.shapes.length-1].isFinished){
+                        return;
+                    }
+                    //Stop adding points to the shape.
+                        //Yes, this means there will be unfinished shapes that may disappear
+                    //Set the lines and N-Polygonsto the correct primitive type
+                        //While they were being tempAdded, they were LINE_LOOP
+                    if(this.curFill+this.curShape == 2 || this.curFill+this.curShape == 7){
+                        this.shapes[this.shapes.length-1].primitiveType = gl.LINE_STRIP;
+                    }else if(this.curFill+this.curShape == 9){
+                        this.shapes[this.shapes.length-1].primitiveType = gl.TRIANGLE_FAN;
+                    }
+                    this.shapes[this.shapes.length-1].isFinished = true;
+                    this.renderAll();
+                }
+                addTemp(event){
+                    if(this.shapes.length == 0 || this.shapes[this.shapes.length-1].isFinished){
+                        return;
+                    }
+                    const coordinates = this.calculate(event.clientX,event.clientY);
+                    this.shapes[this.shapes.length-1].tempAdd(coordinates[0],coordinates[1],this.curColor);
+                    //this.shapes[this.shapes.length-1].primitiveType = gl.LINE_LOOP;
+                    this.renderAll();
+                    this.shapes[this.shapes.length-1].tempRemove();
+                }
+                static shapeChange(){
+                    mymain.changeShape(this);
+                }
+                static colorChange(){
+                    mymain.changeColor(this);
+                }
+                static fillChange(){
+                    mymain.changeFill(this);
+                }
+                static backgroundChange(){
+                    mymain.changeBackground(this);
+                }
+                static click(event){
+                    mymain.addShape(event);
+                }
+                static resetCanvas(){
+                    mymain.reset();
+                }
+                static rightClick(event){
+                    event.preventDefault();
+                    mymain.finishOrCancelShape(event);
+                }
+                static mouseMove(event){
+                    mymain.addTemp(event);
+                }
+            }
+        </script>
+        <link rel="stylesheet" href="../styles.css">
+    </head>
+    <body>
+        <div style="text-align: center; background-color: white; border: 3px solid lime; width: 650px">
+            <label for="shape">Shape</label>
+            <select id="shape">
+                <option>None</option>
+                <option value=0>Box</option>
+                <option value=1>Circle</option>
+                <option value=2>Line</option>
+                <option value=3>Triangle</option>
+                <option value=4>Custom</option>
+            </select>
+            <label for="color">Color</label>
+            <select id="color">
+                <option>None</option>
+                <option value=1>Black</option>
+                <option value=2>Red</option>
+                <option value=3>Green</option>
+                <option value=4>Blue</option>
+                <option value=5>Yellow</option>
+                <option value=6>Purple</option>
+                <option value=7>Cyan</option>
+                <option value=8>White</option>
+            </select>
+            <label for="fill">Style</label>
+            <select id="fill">
+                <option>None</option>
+                <option value=0>Outline</option>
+                <option value=5>Fill</option>
+            </select>
+            <label for="background">Background</label>
+            <select id="background">
+                <option>None</option>
+                <option value=1>Black</option>
+                <option value=2>Red</option>
+                <option value=3>Green</option>
+                <option value=4>Blue</option>
+                <option value=5>Yellow</option>
+                <option value=6>Purple</option>
+                <option value=7>Cyan</option>
+                <option value=8>White</option>
+            </select>
+            <button id="reset">Reset</button><br>
+            <canvas id="mycanvas" width="600" height="600" style = "border: 1px solid #000;">
+                Your Browser does not support Canvas
+            </canvas>
+        </div>
+        <script>
+            var canvas = document.getElementById("mycanvas");
+            var gl = canvas.getContext("webgl");
+            var mymain = new main;
+
+            var shapeSelect = document.getElementById("shape");
+            shapeSelect.addEventListener("click", main.shapeChange);
+            var colorSelect = document.getElementById("color");
+            colorSelect.addEventListener("click", main.colorChange);
+            var fillSelect = document.getElementById("fill");
+            fillSelect.addEventListener("click", main.fillChange);
+            var backgroundSelect = document.getElementById("background");
+            backgroundSelect.addEventListener("click", main.backgroundChange);
+            var reset = document.getElementById("reset");
+            reset.addEventListener("click", main.resetCanvas);
+
+            canvas.addEventListener("click", main.click);
+            canvas.addEventListener("contextmenu", main.rightClick);
+            canvas.addEventListener("mousemove", main.mouseMove);
+        </script>
+    </body>
+</html> 
