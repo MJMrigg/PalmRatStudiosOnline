@@ -1,0 +1,1061 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <Title>Greedy Dragons</Title>
+        <script id="2dVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 frag_color;
+            uniform vec3 translate;
+            uniform vec3 rotate;
+            uniform vec3 scale;
+            
+            vec4 translation(vec4 curPosition){
+                mat4 translationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    translate.x,translate.y,translate.z,1.0
+                );
+                return translationMatrix*curPosition;
+            }
+            vec4 rotation(vec4 curRotation){
+                vec3 c = cos(rotate);
+                vec3 s = sin(rotate);
+                mat4 xRotationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,c.x,s.x,0.0,
+                    0.0,-1.0*s.x,c.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 yRotateMatrix = mat4(
+                    c.y,0.0,-1.0*s.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    s.y,0.0,c.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 zRotateMatrix = mat4(
+                    c.z,s.z,0.0,0.0,
+                    -1.0*s.z,c.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return zRotateMatrix*yRotateMatrix*xRotationMatrix*curRotation;
+            }
+            vec4 scaleTransform(vec4 curScale){
+                mat4 scaleMatrix = mat4(
+                    scale.x,0.0,0.0,0.0,
+                    0.0,scale.y,0.0,0.0,
+                    0.0,0.0,scale.z,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return scaleMatrix*curScale;
+            }
+            
+            void main(){
+                gl_Position = translation(rotation(scaleTransform(a_position)));
+                frag_color = a_color;
+            }
+        </script>
+        <script id="2dFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 frag_color;
+            void main(){
+                gl_FragColor = vec4(frag_color,1);
+            }
+        </script>
+        <script>
+            class webgl{
+                constructor(){
+                    //Get shader source files
+                    this.vertexShaderSource = document.getElementById("2dVertexShader").text;
+                    this.fragmentShaderSource = document.getElementById("2dFragmentShader").text;
+                    //Create shaders
+                    this.vertexShader = this.createShader(gl.VERTEX_SHADER,this.vertexShaderSource);
+                    this.fragmentShader = this.createShader(gl.FRAGMENT_SHADER,this.fragmentShaderSource);
+                    //Create program
+                    this.program = this.createProgram(this.vertexShader,this.fragmentShader);
+                    //Setup Viewport
+                    gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
+                    gl.clearColor(0,1,1,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    
+                    gl.useProgram(this.program);
+                }
+                createShader(type,source){
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader,source);
+                    gl.compileShader(shader);
+                    var sucess = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
+                    if(sucess){
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+                createProgram(vertexShader,fragmentShader){
+                    var program = gl.createProgram();
+                    gl.attachShader(program,vertexShader);
+                    gl.attachShader(program,fragmentShader);
+                    gl.linkProgram(program);
+                    var sucess = gl.getProgramParameter(program,gl.LINK_STATUS);
+                    if(sucess){
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram();
+                }
+            }
+            class transformer{
+                constructor(){
+                    //Determine what direction the z, x, and y vectors face
+                    this.forward = [0,0,1];
+                    this.right = [1,0,0];
+                    this.up = [0,1,0];
+                }
+                //Rotate the vectors
+                doRotations(angles){
+                    //x, y, and z rotation matrices
+                    this.xRotationMatrix = [
+                        [1,0,0,0],
+                        [0,Math.cos(angles[0]),-1*Math.sin(angles[0]),0],
+                        [0,Math.sin(angles[0]),Math.cos(angles[0]),0],
+                        [0,0,0,1]
+                    ];
+                    this.yRotationMatrix = [
+                        [Math.cos(angles[1]),0,Math.sin(angles[1]),0],
+                        [0,1,0,0],
+                        [-1*Math.sin(angles[1]),0,Math.cos(angles[1]),0],
+                        [0,0,0,1]
+                    ];
+                    this.zRotationMatrix = [
+                        [Math.cos(angles[2]),-1*Math.sin(angles[2]),0,0],
+                        [Math.sin(angles[2]),Math.cos(angles[2]),0,0],
+                        [0,0,1,0],
+                        [0,0,0,1]
+                    ];
+                    //Transform each vector
+                    this.forward = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,0,1,0])));
+                    this.right = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[1,0,0,0])));
+                    this.up = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,1,0,0])));
+                }
+                //Literally just multiplying two matrices
+                crossMultiply(u,v){
+                    return [
+                        u[0][0]*v[0] + u[0][1]*v[1] + u[0][2]*v[2] + u[0][3]*v[3],
+                        u[1][0]*v[0] + u[1][1]*v[1] + u[1][2]*v[2] + u[1][3]*v[3],
+                        u[2][0]*v[0] + u[2][1]*v[1] + u[2][2]*v[2] + u[2][3]*v[3],
+                        u[3][0]*v[0] + u[3][1]*v[1] + u[3][2]*v[2] + u[3][3]*v[3]
+                    ];
+                }
+            }
+            class gameObject{
+                constructor(){
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.isTrigger = false;
+                    this.velocity = [0,0,0]; //Translation Speed
+                    this.angularVelocity = [0,0,0]; //Rotation Speed
+                    this.name = "default";
+                    this.id = 0;
+                    this.prefab; //Object type
+                    this.transformer = new transformer(); //Transformer for the object's front facing vectors
+                    this.primitiveType = gl.TRIANGLES; //Default primitive type
+                    this.vertices = [];
+                    this.indices = [];
+                    //Buffers are null since there is no data buffered to them yet
+                    this.vertexBuffer = null;
+                    this.indexBuffer = null;
+                    this.collisionRadii = []; //Multiple Collision Radii in case it's a rectangular colliider
+                }
+                move(){
+                    var temp = [0,0,0];
+                    for(let i = 0; i < 3; i++){
+                        temp[i] = this.location[i];
+                        temp[i] += this.velocity[i];
+                        this.rotation[i] += this.angularVelocity[i];
+                    }
+                    if(!this.isTrigger){ //If this object is not a trigger object
+                        var noCollision = true; //Assume there is no collision
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this.collisionRadii,mymain.solids[i].location,mymain.solids[i].collisionRadii)){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                noCollision = false;
+                                //Edge case: The red enemy dragon collided with two clouds
+                                //If we handled both clouds, the red enemy dragon would rotate, then rotate again.
+                                //Meaning it would be back in its original orientation and it would be stuck in this loop.
+                                try{ //Assuming the other object didn't get deleted
+                                    if((this.prefab == redEnemyDragon && mymain.solids[i].prefab == cloud) 
+                                    || (this.prefab == cloud && mymain.solids[i].prefab == redEnemyDragon)){
+                                    break;
+                                }
+                                }catch{}
+                            }
+                        }
+                        //If no collision, move the object
+                        if(noCollision){
+                            for(let i = 0; i < 3; i++){
+                                this.location[i] = temp[i];
+                            }
+                        }
+                    }else{ //If this object IS a trigger object
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this.collisionRadii,mymain.solids[i].location,mymain.solids[i].collisionRadii)){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collision
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                //Edge case: The red enemy dragon collided with two clouds
+                                //If we handled both clouds, the red enemy dragon would rotate, then rotate again.
+                                //Meaning it would be back in its original orientation and it would be stuck in this loop.
+                                try{ //Assuming the other object didn't get deleted
+                                    if((this.prefab == redEnemyDragon && mymain.solids[i].prefab == cloud) 
+                                    || (this.prefab == cloud && mymain.solids[i].prefab == redEnemyDragon)){
+                                    break;
+                                }
+                                }catch{}
+                            }
+                        }
+                        //Check all trigger objects
+                        for(var i in mymain.triggers){
+                            if(this == mymain.triggers[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a trigger object
+                            if(mymain.checkCollision(temp,this.collisionRadii,mymain.triggers[i].location,mymain.triggers[i].collisionRadii)){
+                                this.handleCollision(mymain.triggers[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.triggers[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                //Edge case: The red enemy dragon collided with two clouds
+                                //If we handled both clouds, the red enemy dragon would rotate, then rotate again.
+                                //Meaning it would be back in its original orientation and it would be stuck in this loop.
+                                try{ //Assuming the other object didn't get deleted
+                                    if((this.prefab == redEnemyDragon && mymain.triggers[i].prefab == cloud) 
+                                    || (this.prefab == cloud && mymain.triggers[i].prefab == redEnemyDragon)){
+                                    break;
+                                }
+                                }catch{}
+                            }
+                        }
+                        //Move the object
+                        for(let i = 0; i < 3; i++){
+                            this.location[i] = temp[i];
+                        }
+                    }
+                }
+                render(program){
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+
+                    //Handle Vertices
+                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6*Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset);
+
+                    //Handle Colors
+                    var colorAttributeLocation = gl.getAttribLocation(program,"a_color");
+                    offset = 3*Float32Array.BYTES_PER_ELEMENT;
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation,size,type,normalize,stride,offset);
+
+                    //Handle Transformations
+                    var scaleLocation = gl.getUniformLocation(program,"scale");
+                    gl.uniform3fv(scaleLocation,new Float32Array(this.scale));
+                    var rotateLocation = gl.getUniformLocation(program,"rotate");
+                    gl.uniform3fv(rotateLocation,new Float32Array(this.rotation));
+                    var translateLocation = gl.getUniformLocation(program,"translate");
+                    gl.uniform3fv(translateLocation,new Float32Array(this.location));
+
+                    //Draw Shape
+                    offset = 0;
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer);
+                    gl.drawElements(gl.TRIANGLES,this.indices.length,gl.UNSIGNED_BYTE,offset);
+                }
+                //Since the objects will have their own vertices and indices, this function will be executed in thier constructors
+                initializeBuffers(){
+                    //Load all the data onto the vertex buffer now that the vertices been defined.
+                    this.vertexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.vertices),gl.STATIC_DRAW);
+                    //Load all the data onto the index buffer now that the indices been defined
+                    this.indexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer),
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint8Array(this.indices), gl.STATIC_DRAW);
+                }
+                handleCollision(object){};
+                update(){}
+            }
+            class dragon extends gameObject{
+                constructor(){
+                    super();
+                    this.collisionRadii = [
+                        0.8, //Right Collider
+                        0.8, //Left Collider
+                        0.7, //Top Collider
+                        0.8, //Bottom Collider
+                    ]
+                    //Not defining the vertices yet, since each dragon has different colors
+                    this.indices = [
+                        //Body
+                        0,1,2,
+                        0,3,2,
+                        //Tail
+                        4,5,6,
+                        4,7,6,
+                        //Tail End
+                        8,9,10,
+                        //Neck
+                        11,12,13,
+                        11,14,13,
+                        //Head
+                        15,16,17,
+                        15,18,17,
+                        //Nose
+                        19,20,21,
+                        19,22,21,
+                        //Left Wing
+                        23,24,25,
+                        23,26,25,
+                        //Left Wing End
+                        25,27,28,
+                        25,28,26,
+                        //Left Wing Middle
+                        26,30,31,
+                        30,29,26,
+                        //Left Wing Body
+                        23,32,33,
+                        23,33,24,
+                        //Left Wing Body Flesh
+                        34,35,36,
+                        //Left Wing Middle Flesh
+                        37,38,39,
+                        40,37,38,
+                        //Left Wing End Flesh
+                        41,42,43,
+                        //Right Wing
+                        23+21,24+21,25+21,
+                        23+21,26+21,25+21,
+                        //Right Wing End
+                        25+21,27+21,28+21,
+                        25+21,28+21,26+21,
+                        //Right Wing Middle
+                        26+21,30+21,31+21,
+                        30+21,29+21,26+21,
+                        //Right Wing Body
+                        23+21,32+21,33+21,
+                        23+21,33+21,24+21,
+                        //Right Wing Body Flesh
+                        34+21,35+21,36+21,
+                        //Right Wing Middle Flesh
+                        37+21,38+21,39+21,
+                        40+21,37+21,38+21,
+                        //Left Wing End Flesh
+                        41+21,42+21,43+21,
+                        //Left Pupil
+                        65,66,67,
+                        65,68,67,
+                        //Left Eyeball
+                        69,70,71,
+                        69,72,71,
+                        //Right Pupil
+                        73,74,75,
+                        73,76,75,
+                        //Right Eyeball
+                        77,78,79,
+                        77,80,79,
+                        //Left Nostril
+                        81,82,83,
+                        81,84,83,
+                        //Right Nostril
+                        85,86,87,
+                        85,88,87,
+                        //Left Ear
+                        89,90,91,
+                        89,92,91,
+                        //Right Ear
+                        93,94,95,
+                        93,96,95,
+                    ];
+                    //Add Spines to indices
+                    this.spines = 11;
+                    for(let i = 0; i < this.spines; i++){
+                        var factor = 4*i;
+                        this.indices.push(97+factor,98+factor,99+factor);
+                        this.indices.push(97+factor,100+factor,99+factor);
+                    }
+                }
+                //Function to set vertices based off of the dragon's colors
+                setVertices(){
+                    this.vertices = [
+                        //Body
+                        -0.2,0.3,0,     this.primaryColor1,this.primaryColor2,0,
+                        0.2,0.3,0,      this.primaryColor1,this.primaryColor2,0,
+                        0.2,-0.3,0,     this.primaryColor1,this.primaryColor2,0,
+                        -0.2,-0.3,0,    this.primaryColor1,this.primaryColor2,0,
+                        //Tail
+                        -0.05,-0.3,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.05,-0.7,0,   this.primaryColor1,this.primaryColor2,0,
+                        0.05,-0.7,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.05,-0.3,0,    this.primaryColor1,this.primaryColor2,0,
+                        //Tail End
+                        -0.1,-0.7,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.1,-0.7,0,     this.primaryColor1,this.primaryColor2,0,
+                        0,-0.8,0,       this.primaryColor1,this.primaryColor2,0,
+                        //Neck
+                        -0.05,0.3,0,    this.primaryColor1,this.primaryColor2,0,
+                        -0.05,0.4,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.05,0.4,0,     this.primaryColor1,this.primaryColor2,0,
+                        0.05,0.3,0,     this.primaryColor1,this.primaryColor2,0,
+                        //Head
+                        -0.1,0.4,0,     this.primaryColor1,this.primaryColor2,0,
+                        -0.1,0.6,0,     this.primaryColor1,this.primaryColor2,0,
+                        0.1,0.6,0,      this.primaryColor1,this.primaryColor2,0,
+                        0.1,0.4,0,      this.primaryColor1,this.primaryColor2,0,
+                        //Nose
+                        -0.05,0.6,0,    this.primaryColor1,this.primaryColor2,0,
+                        -0.05,0.7,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.05,0.7,0,     this.primaryColor1,this.primaryColor2,0,
+                        0.05,0.6,0,     this.primaryColor1,this.primaryColor2,0,
+                        //Left Wing
+                        -0.2,0.15,0,    this.primaryColor1,this.primaryColor2,0,
+                        -0.2,0.25,0,    this.primaryColor1,this.primaryColor2,0,
+                        -0.7,0.25,0,    this.primaryColor1,this.primaryColor2,0,
+                        -0.7,0.15,0,    this.primaryColor1,this.primaryColor2,0,
+                        //Left Wing End
+                        -0.8,0.125,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.8,0.025,0,   this.primaryColor1,this.primaryColor2,0,
+                        //Left Wing Middle
+                        -0.65,0.15,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.55,-0.1,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.6,-0.1,0,    this.primaryColor1,this.primaryColor2,0,
+                        //Left Wing Body
+                        -0.3,0.025,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.4,0.025,0,   this.primaryColor1,this.primaryColor2,0,
+                        //Left Wing Body Flesh
+                        -0.2,0.15,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        -0.3,0.025,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        -0.2,-0.1,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        //Left Wing Middle Flesh
+                        -0.4,0.025,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        -0.65,0.15,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        -0.55,-0.1,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        -0.28,0.15,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        //Left Wing End Flesh
+                        -0.7,0.15,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        -0.8,0.025,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        -0.6,-0.1,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        //Right Wing
+                        0.2,0.15,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.2,0.25,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.7,0.25,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.7,0.15,0,    this.primaryColor1,this.primaryColor2,0,
+                        //Right Wing End
+                        0.8,0.125,0,   this.primaryColor1,this.primaryColor2,0,
+                        0.8,0.025,0,   this.primaryColor1,this.primaryColor2,0,
+                        //Right Wing Middle
+                        0.65,0.15,0,   this.primaryColor1,this.primaryColor2,0,
+                        0.55,-0.1,0,   this.primaryColor1,this.primaryColor2,0,
+                        0.6,-0.1,0,    this.primaryColor1,this.primaryColor2,0,
+                        //Right Wing Body
+                        0.3,0.025,0,   this.primaryColor1,this.primaryColor2,0,
+                        0.4,0.025,0,   this.primaryColor1,this.primaryColor2,0,
+                        //Right Wing Body Flesh
+                        0.2,0.15,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        0.3,0.025,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        0.2,-0.1,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        //Right Wing Middle Flesh
+                        0.4,0.025,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        0.65,0.15,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        0.55,-0.1,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        0.28,0.15,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        //Right Wing End Flesh
+                        0.7,0.15,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        0.8,0.025,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        0.6,-0.1,0,    this.secondaryColor1,this.secondaryColor2,0,
+                        //Left Pupil
+                        -0.075,0.55,0,  this.secondaryColor1,this.secondaryColor2,0,
+                        -0.075,0.575,0, this.secondaryColor1,this.secondaryColor2,0,
+                        -0.025,0.575,0, this.secondaryColor1,this.secondaryColor2,0,
+                        -0.025,0.55,0,  this.secondaryColor1,this.secondaryColor2,0,
+                        //Left Eyeball
+                        -0.04,0.56,0,   0,0,0,
+                        -0.04,0.575,0,  0,0,0,
+                        -0.06,0.575,0,  0,0,0,
+                        -0.06,0.56,0,   0,0,0,
+                        //Right Pupil
+                        0.075,0.55,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        0.075,0.575,0,  this.secondaryColor1,this.secondaryColor2,0,
+                        0.025,0.575,0,  this.secondaryColor1,this.secondaryColor2,0,
+                        0.025,0.55,0,   this.secondaryColor1,this.secondaryColor2,0,
+                        //Right Eyeball
+                        0.04,0.56,0,    0,0,0,
+                        0.04,0.575,0,   0,0,0,
+                        0.06,0.575,0,   0,0,0,
+                        0.06,0.56,0,    0,0,0,
+                        //Left Nostril
+                        -0.04,0.69,0,   0,0,0,
+                        -0.04,0.7,0,    0,0,0,
+                        -0.01,0.7,0,    0,0,0,
+                        -0.01,0.69,0,   0,0,0,
+                        //Right Nostril
+                        0.04,0.69,0,   0,0,0,
+                        0.04,0.7,0,    0,0,0,
+                        0.01,0.7,0,    0,0,0,
+                        0.01,0.69,0,   0,0,0,
+                        //Left Ear
+                        -0.06,0.4,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.09,0.4,0,   this.primaryColor1,this.primaryColor2,0,
+                        -0.09,0.375,0, this.primaryColor1,this.primaryColor2,0,
+                        -0.06,0.375,0, this.primaryColor1,this.primaryColor2,0,
+                        //Right Ear
+                        0.06,0.4,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.09,0.4,0,    this.primaryColor1,this.primaryColor2,0,
+                        0.09,0.375,0,  this.primaryColor1,this.primaryColor2,0,
+                        0.06,0.375,0,  this.primaryColor1,this.primaryColor2,0,
+                    ];
+                    //Add Spines to vertices
+                    for(let i = 0; i < this.spines; i++){
+                        this.vertices.push(-0.02,0.31-(i*.1),0,    this.secondaryColor1,this.secondaryColor2,0);
+                        this.vertices.push(-0.02,0.39-(i*.1),0,    this.secondaryColor1,this.secondaryColor2,0);
+                        this.vertices.push(0.02,0.39-(i*.1),0,     this.secondaryColor1,this.secondaryColor2,0);
+                        this.vertices.push(0.02,0.31-(i*.1),0,     this.secondaryColor1,this.secondaryColor2,0);
+                    }
+                }
+            }
+            class greenPlayerDragon extends dragon{
+                constructor(){
+                    super();
+                    //Set the colors and add the vertices
+                    this.primaryColor1 = 0;
+                    this.primaryColor2 = 0.55;
+                    this.secondaryColor1 = 0.5;
+                    this.secondaryColor2 = 1;
+                    this.setVertices();
+                    //Intialize the buffer now that the vertices and indieces have been defined
+                    this.initializeBuffers();
+                    //Get high score from local storage
+                    this.score = 0;
+                    this.highScore = JSON.parse(localStorage.getItem("greedyDragonsHighScore"));
+                    if(this.highScore == null || this.highScore == "null"){ //If it's not in local  storage, set it
+                        this.highScore = 0;
+                    }
+                    //Add Score
+                    this.score = 0;
+                    this.scoreCard = document.getElementById("score");
+                    this.scoreCard.innerText = "Score: "+this.score+" | High Score: "+this.highScore;
+                }
+                update(){
+                    if(mymain.checkKey("A") != undefined && mymain.checkKey("A") != false){
+                        this.angularVelocity = [0,0,0.1];
+                    }else if(mymain.checkKey("D") != undefined && mymain.checkKey("D") != false){
+                        this.angularVelocity = [0,0,-0.1];
+                    }//Secret function: bullet tornado
+                    else if(mymain.checkKey("J") != undefined && mymain.checkKey("J") != false){
+                        this.angularVelocity = [0,0,1];
+                        if((mymain.checkKey(" ") != undefined && mymain.checkKey(" ") != false) || 
+                            (mymain.checkKey("T") != undefined && mymain.checkKey("T") != false)){
+                            mymain.breathBullet = false;
+                            this.breatheBullet();
+                        }
+                        mymain.breathBullet = true;
+                    }else if(mymain.checkKey("L") != undefined && mymain.checkKey("L") != false){
+                        this.angularVelocity = [0,0,-1];
+                        if((mymain.checkKey(" ") != undefined && mymain.checkKey(" ") != false) || 
+                            (mymain.checkKey("T") != undefined && mymain.checkKey("T") != false)){
+                            mymain.breathBullet = false;
+                            this.breatheBullet();
+                        }
+                        mymain.breathBullet = true;
+                    }else{
+                        this.angularVelocity = [0,0,0];
+                    }
+                    //Get front facing vector
+                    this.transformer.doRotations(this.rotation);
+                    var temp = this.transformer.up;
+                    if(mymain.checkKey("W") != undefined && mymain.checkKey("W") != false){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = temp[i] * 0.05;
+                        }
+                    }else if(mymain.checkKey("S") != undefined && mymain.checkKey("S") != false){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = temp[i] * -0.05;
+                        }
+                    }else{
+                        this.velocity = [0,0,0];
+                    }
+                    if((mymain.checkKey(" ") != undefined && mymain.checkKey(" ") != false) || 
+                        (mymain.checkKey("T") != undefined && mymain.checkKey("T") != false)){
+                        this.breatheBullet();
+                    }
+                    this.move();
+                }
+                handleCollision(object){
+                    //Collect a coin
+                    if(object.prefab == coin){
+                        this.score += 1;
+                        this.highScore = Math.max(this.score,this.highScore);
+                        localStorage.setItem("greedyDragonsHighScore",JSON.stringify(this.highScore));
+                        this.scoreCard.innerText = "Score: "+this.score+" | High Score: "+this.highScore;
+                        mymain.removeObject(object.id);
+                        //Spawn a new coin and with it, and maybe spawn a new enemy
+                        mymain.addObject(1,coin,[(Math.random()%(0.8-(-0.8)+1))-0.8, (Math.random()%(0.8-(-0.8)+1))-0.8, 0], [0,0,0], [1,1,1]);
+                        if(mymain.enemies >= 1){
+                            return;
+                        }
+                        var check = 0; //Make sure no infinite loops happen.
+                        do {
+                            //Generate random coordinates for enemy
+                            var x = (Math.random() % (0.6 - (-0.6) + 1)) - 0.6;
+                            var y = (Math.random() % (0.6 - (-0.6) + 1)) - 0.6;
+                            //Make sure the enemy won't spawn too near the player
+                            var collisionAdder = 0.25;
+                            var colliders = [];
+                            for (let i = 0; i < 4; i++) {
+                                colliders[i] = (this.collisionRadii[i] * 0.3) + collisionAdder;
+                            }
+                            check++; //If check goes all the way up, the worse thing that'll happen is an enemy won't spawn
+                        } while (mymain.checkCollision(this.location, this.collisionRadii, [x, y, 0], colliders) && check < 15);
+                        if (check < 15) {
+                            var rz = Math.floor(Math.random() * (360 - 0 + 1) + 0) * (Math.PI / 180);
+                            mymain.addObject(2, redEnemyDragon, [x, y, 0], [0, 0, rz], [0.3, 0.3, 0.3]);
+                            mymain.enemies += 1;
+                        }
+                    }
+                }
+                breatheBullet(){
+                    if(!mymain.breathBullet){
+                        mymain.breathBullet = true;
+                        //Set the location the bullet will spawn at as the mouth of the dragon
+                        //Get forward vector
+                        this.transformer.doRotations(this.rotation);
+                        var front = [];
+                        for(let i = 0; i < 3; i++){
+                            front[i] = this.location[i] + this.transformer.up[i] * 0.05;
+                        }
+                        mymain.addObject(1,fireballBullet,front,this.rotation,[1,1,1]);
+                    }
+                }
+            }
+            class redEnemyDragon extends dragon{
+                constructor(){
+                    super();
+                    this.isTrigger = true;
+                    //Set colors and add vertices
+                    this.primaryColor1 = 1;
+                    this.primaryColor2 = 0;
+                    this.secondaryColor1 = 1;
+                    this.secondaryColor2 = 0.7;
+                    this.setVertices();
+                    //Intialize the buffer now that the vertices and indieces have been defined
+                    this.initializeBuffers();
+                }
+                update(){
+                    //Get front facing vector
+                    this.transformer.doRotations(this.rotation);
+                    this.front = this.transformer.up;
+                    //Update velocity
+                    for(let i = 0; i < 3; i++){
+                        this.velocity[i] = this.front[i] * 0.01;
+                    }
+                    //If the dragon glitched through the map, delete it
+                    if(this.location[0] > 1 || this.location[0] < -1 || this.location[1] > 1 || this.location[1] < -1){
+                        mymain.enemies -= 1;
+                        mymain.removeObject(this.id);
+                    }
+                    this.move();
+                }
+                handleCollision(object){
+                    if(object.prefab == cloud){
+                        this.rotation[2] -= 180*(Math.PI/180);
+                    }
+                    if(object.prefab == greenPlayerDragon){
+                        object.scoreCard.innerText = "Game Over. Press Enter to restart. | Final Score: "+object.score+" | High Score: "+object.highScore;
+                        mymain.removeObject(object.id);
+                        mymain.end = true; //End the game
+                    }
+                }
+            }
+            class cloud extends gameObject{
+                constructor(){
+                    super();
+                    this.collisionRadii = [
+                        0.1,0.1,0.1,0.1
+                    ];
+                    this.vertices = [
+                        -0.1,0.1,0,     1,1,1,
+                        0.1,0.1,0,      1,1,1,
+                        0.1,-0.1,0,     1,1,1,
+                        -0.1,-0.1,0,    1,1,1
+                    ];
+                    this.indices = [
+                        0,1,2,
+                        0,3,2
+                    ];
+                    //Intialize the buffer now that the vertices and indicies have been defined
+                    this.initializeBuffers();
+                }
+                handleCollision(object){
+                    if(object.prefab == fireballBullet){
+                        mymain.removeObject(object.id);
+                        mymain.breathBullet = false;
+                    }
+                }
+            }
+            class coin extends gameObject{
+                constructor(){
+                    super();
+                    this.isTrigger = true;
+                    this.vertices = [0,0,0,1,1,0]; //Add center of circlar coin
+                    this.radius = 0.075;
+                    this.collisionRadii = [
+                        this.radius,
+                        this.radius,
+                        this.radius,
+                        this.radius
+                    ]
+                    for(let i = 0; i <= 40; i++){ //Add edge points
+                        this.vertices.push(
+                            this.radius*Math.cos((i*9)*(Math.PI/180)),
+                            this.radius*Math.sin((i*9)*(Math.PI/180)),
+                            0,1,1,0
+                        );
+                    }
+                    //Set indicies
+                    for(let i = 0; i < this.vertices.length/6; i++){
+                        this.indices.push(0,i,i+1);
+                    }
+                    //Intialize the buffer now that the vertices and indicies have been defined
+                    this.initializeBuffers();
+                }
+                update(){
+                    this.rotation[1] += 0.1;
+                    this.move();
+                }
+            }
+            class fireballBullet extends gameObject{
+                constructor(){
+                    super();
+                    this.isTrigger = true;
+                    this.radius = 0.025;
+                    this.collisionRadii = [
+                        this.radius,this.radius,this.radius,this.radius
+                    ];
+                    //Set Vertices
+                    this.vertices = [
+                        0,0,0,  0.5,1,0
+                    ];
+                    for(let i = 0; i <= 40; i++){
+                        this.vertices.push(this.radius*Math.cos((9*i)*(Math.PI/180)),this.radius*Math.sin((9*i)*(Math.PI/180)),0, 0.5,1,0);
+                    }
+                    //Set Indices
+                    for(let i = 0; i < this.vertices.length/6; i++){
+                        this.indices.push(0,i,i+1);
+                    }
+                    //Intialize the buffer now that the vertices and indicies have been defined
+                    this.initializeBuffers();
+                }
+                handleCollision(object){
+                    if(object.prefab == redEnemyDragon){
+                        mymain.removeObject(object.id);
+                        mymain.enemies -= 1;
+                        mymain.breathBullet = false;
+                        mymain.removeObject(this.id);
+                    }
+                }
+                update(){
+                    //Get front facing vector
+                    this.transformer.doRotations(this.rotation);
+                    this.front = this.transformer.up;
+                    //Update velocity
+                    for(let i = 0; i < 3; i++){
+                        this.velocity[i] = this.front[i] * 0.01;
+                    }
+                    this.move();
+                }
+            }
+            class main{
+                constructor(){
+                    this.webgl = new webgl;
+                    //Object arrays and counter
+                    this.visuals = [];
+                    this.triggers = [];
+                    this.solids = [];
+                    this.keys = [];
+                    this.restart();
+                }
+                restart(){
+                    //Remove all objects
+                    this.objectCounter = 0;
+                    for(var i in this.visuals){
+                        this.removeObject(this.visuals[i].id);
+                    }
+                    for(var i in this.triggers){
+                        this.removeObject(this.triggers[i].id);
+                    }
+                    for(var i in this.solids){
+                        this.removeObject(this.solids[i].id);
+                    }
+                    //Turn off all keys
+                    for(var i in this.keys){
+                        this.keys[i] = false;
+                    }
+                    this.enemies = 0; //Number of enemies
+                    this.end = false; //Game has not ended
+                    this.breathBullet = false; //Player Dragon has not breathed(fired) their breath(bullet)
+
+                    this.addObject(2,greenPlayerDragon,[0,0,0],[0,0,0],[0.25,0.25,0.25]); //Add Player
+                    //Add Border Clouds
+                    for(let i = -1; i <= 1; i += 0.2){
+                        this.addObject(2,cloud,[i,1.1,0],[0,0,0],[1,1,1]);
+                        this.addObject(2,cloud,[i,-1.03,0],[0,0,0],[1,1,1]);
+                    }
+                    for(let i = 0.8; i >= -0.8; i -= 0.2){
+                        this.addObject(2,cloud,[1.1,i,0],[0,0,0],[1,1,1]);
+                        this.addObject(2,cloud,[-1.1,i,0],[0,0,0],[1,1,1]);
+                    }
+                    this.addObject(1,coin,[0.5,0.5,0],[0,0,0],[1,1,1]); //Add first Coin
+                }
+                addObject(type,prefab,location,rotation,scale){
+                    var temp = new prefab; //Create Object
+                    //Set properties
+                    var id = "ID"+this.objectCounter
+                    temp.id = id;
+                    this.objectCounter++;
+                    temp.prefab = prefab;
+                    for(let i = 0; i < 3; i++){
+                        temp.location[i] = location[i];
+                        temp.rotation[i] = rotation[i];
+                        temp.scale[i] = scale[i];
+                    }
+                    //Scale collision radii along with the object
+                    for(let i = 0; i < 2; i++){
+                        temp.collisionRadii[i] *= temp.scale[0];
+                        temp.collisionRadii[i+2] *= temp.scale[1];
+                    }
+                    //Add to array
+                    switch(type){
+                        case 0:
+                            this.visuals[id] = temp;
+                            break;
+                        case 1:
+                            this.triggers[id] = temp;
+                            break;
+                        case 2:
+                            this.solids[id] = temp;
+                            break;
+                        default:
+                            console.error("Error: "+type+" is not a valid collision type");
+                            break;
+                        return temp;
+                    }
+                }
+                removeObject(id){
+                    if(id in this.visuals){
+                        delete this.visuals[id];
+                    }
+                    if(id in this.triggers){
+                        delete this.triggers[id];
+                    }
+                    if(id in this.solids){
+                        delete this.solids[id];
+                    }
+                }
+                keyDown(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = true;
+                }
+                keyUp(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = false;
+                }
+                checkKey(key){
+                    return this.keys[key];
+                }
+                updateAll(){
+                    for(var i in this.visuals){
+                        this.visuals[i].update();
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].update();
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].update();
+                    }
+                }
+                renderAll(){
+                    gl.clearColor(0,1,1,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    for(var i in this.visuals){
+                        this.visuals[i].render(this.webgl.program);
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].render(this.webgl.program);
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].render(this.webgl.program);
+                    }
+                }
+                checkCollision(object1Location,object1CollisionRadii,object2Location,object2CollisionRadii){
+                    //Check Right Collision
+                    //If right1 >= left2 && left1 <= left2
+                    if(object1Location[0]+object1CollisionRadii[0] >= object2Location[0]-object2CollisionRadii[1]
+                        && object1Location[0]-object1CollisionRadii[1] <= object2Location[0]-object2CollisionRadii[1]
+                    ){
+                        //Check Right Top Collision
+                        //If top1 >= bottom2 && top1 <= top2
+                        if(object1Location[1]+object1CollisionRadii[2] >= object2Location[1]-object2CollisionRadii[3]
+                            && object1Location[1]+object1CollisionRadii[2] <= object2Location[1]+object2CollisionRadii[2]){
+                                return true;
+                        }
+                        //Check Right Bottom Collision
+                        //If bottom1 <= top2 && top1 >= top2
+                        if(object1Location[1]-object1CollisionRadii[3] <= object2Location[1]+object2CollisionRadii[2] 
+                            && object1Location[1]+object1CollisionRadii[2] >= object2Location[1]+object2CollisionRadii[2]){
+                                return true;
+                        }
+                    }
+                    //Check Left Collision
+                    //If left1 <= right2 && left1 >= left2
+                    if(object1Location[0]-object1CollisionRadii[1] <= object2Location[0]+object2CollisionRadii[0] &&
+                        object1Location[0]-object1CollisionRadii[1] >= object2Location[0]-object2CollisionRadii[1]
+                    ){
+                        //Check Left Top Collision
+                        //If top1 >= bottom2 && top1 <= top2
+                        if(object1Location[1]+object1CollisionRadii[2] >= object2Location[1]-object2CollisionRadii[3]
+                            && object1Location[1]+object1CollisionRadii[2] <= object2Location[1]+object2CollisionRadii[2]){
+                                return true;
+                        }
+                        //Check Left Bottom Collision
+                        //If bottom1 <= top2 && top1 >= top2
+                        if(object1Location[1]-object1CollisionRadii[3] <= object2Location[1]+object2CollisionRadii[2] 
+                            && object1Location[1]+object1CollisionRadii[2] >= object2Location[1]+object2CollisionRadii[2]){
+                                return true;
+                        }
+                    }
+                    //If they're on the same y-axis
+                    if(object1Location[0] == object2Location[0]){
+                        //Top of object1 collides with bottom of object2
+                        //top1 >= bottom2 && top1 <= top2
+                        if(object1Location[1]+object1CollisionRadii[2] >= object2Location[1]-object2CollisionRadii[3] &&
+                            object1Location[1]+object1CollisionRadii[2] <= object2Location[1]+object2CollisionRadii[2]){
+                                return true;
+                        }
+                        //Bottom of object1 collides with top of object2
+                        //bottom1 <= top2 && bottom1 >= bottom2
+                        if(object1Location[1]-object1CollisionRadii[3] <= object2Location[1]+object2CollisionRadii[2] &&
+                            object1Location[1]-object1CollisionRadii[3] >= object2Location[1]-object2CollisionRadii[3]){
+                                return true;
+                        }
+                        //Same coordinates
+                        if(object1Location[1] == object2Location[1]){
+                            return true;
+                        }
+                    }
+                    //If they're on the same x-axis
+                    if(object1Location[1] == object2Location[1]){
+                        //Right of object1 collides with left of object2
+                        //right1 >= left2 && right1 <= right2
+                        if(object1Location[0]+object1CollisionRadii[0] >= object2Location[0]-object2CollisionRadii[1] &&
+                            object1Location[0]+object1CollisionRadii[0] <= object2Location[0]+object2CollisionRadii[0]){
+                                return true;
+                        }
+                        //Left of object1 collides with right object2
+                        //left1 <= right2 && left1 >= left2
+                        if(object1Location[0]-object1CollisionRadii[1] <= object2Location[0]+object2CollisionRadii[1] &&
+                            object1Location[0]-object1CollisionRadii[1] >= object2Location[0]-object2CollisionRadii[1]){
+                                return true;
+                        }
+                        //Same coordinates
+                        if(object1Location[0] == object2Location[0]){
+                            return true;
+                        }
+                    }
+                    //If No Collision
+                    return false;
+                }
+
+                static keyD(event){
+                    mymain.keyDown(event);
+                }
+                static keyU(event){
+                    mymain.keyUp(event);
+                }
+                static mainLoop(){
+                    if(mymain.checkKey(String.fromCharCode(13)) == true){
+                        mymain.restart();
+                    }
+                    if(!mymain.end){
+                        mymain.updateAll();
+                        mymain.renderAll();
+                    }
+                    requestAnimationFrame(main.mainLoop);
+                }
+            }
+        </script>
+        <link rel="stylesheet" href="../styles.css">
+    </head>
+    <body>
+        <div class="box">
+            <h1 class="title">Greedy Dragons</h1>
+        </div>
+        <div class="flexBox">
+            <div class="gameBox">
+                <p id="score" style="float: left; margin-left: 25px;"></p>
+                <canvas id="mycanvas" width="600" height="600">
+                    YOUR BROWSER DOES NOT SUPPORT CANVAS
+                </canvas>
+                <script>
+                    var canvas = document.getElementById("mycanvas");
+                    var gl = canvas.getContext("webgl");
+                    var mymain = new main;
+                    
+                    window.onkeydown = main.keyD;
+                    window.onkeyup = main.keyU;
+                    requestAnimationFrame(main.mainLoop);
+                </script>
+            </div>
+            <div class="story" style="height: 665px;">
+                <h3 class="text">
+                    Welcome to Greedy Dragons!<br><br>
+                    In this game, you play a young green dragon, who wishes to accumlulate massive amounts of wealth. So he flies through the sky in search of great fortune!<br>
+                    However, you are not alone. Red dragons, the most greedy and evil of all dragons, seek this wealth too, and unlike you, are much bigger and far more aggressive. If they get you, you will die.<br>
+                    Your one advantage against them: your breath. Because the red dragons are much older then you, their breath is much weaker and does not hurt you. Meaning that you can shoot them down from a distance and they will be unable to do anything about it.<br>
+                    So go, collect coins, dodge and shoot red dragons, and become richer then your wildest dreams!<br>
+                    <br>
+                    How to play:<br>
+                    Use WASD to move the green dragon around the screen.<br>
+                    Fly to coins to collect them. When you collect a coin, you will earn a point and a new one will spawn.<br>
+                    Whenever you collect a coin, there is a chance of a red dragon spawning. If you touch them or they touch you, you die.<br>
+                    Press the space bar to a fireball. There can only be one fireball on the screen at a time.<br>
+                    Keep collecting coins until you die.<br>
+                    If you die or want to start over, press enter to restart.<br>
+                    The game keeps track of your high score. Try to beat it!<br>
+                    There is also a cheat code involving another key on your keyboard. Try to find it!<br>
+                    <br>
+                    GLHF!
+                </h3>
+            </div>
+            <div>
+                <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+                <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            </div>
+        </div>
+    </body>
+</html>

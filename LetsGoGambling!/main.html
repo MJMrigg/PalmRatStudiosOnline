@@ -60,26 +60,24 @@
     }
     class main{
         constructor(instances){
-            this.money = 100;
-             //Write money to screen
-            this.text = document.getElementById("Money");
-            this.text.innerHTML += "Current Money: " + this.money + "<br>";
-            //Create slot machines
             this.slots = [];
-            for(var i = 0; i < instances; i++){
-                this.slots[i] = new slotMachine;
-            }
+            this.restart(instances);
         }
         playAll(){ //Play the slots
             event.preventDefault();
+            if(this.money <= 0){
+                this.restart(3);
+            }
             var instances = document.getElementById("amount").elements[0].value;
             for(let i in this.slots){ //Delete the initial batch of slots
                 this.slots[i].div.remove();
                 delete this.slots[i];
             }
             for(let i = 0; i < instances; i++){ //Add new slots and play each slot
-                if(this.money == 0){ //If the player has no more money, don't spin.
+                if(this.money <= 0){ //If the player has no more money, don't spin.
                     this.text.innerHTML = "You have no more money. <br>";
+                    var playButton = document.getElementById("playButton");
+                    playButton.innerHTML = "Reset";
                     return;
                 }
                 this.slots[i] = new slotMachine;
@@ -88,6 +86,25 @@
                 this.money += this.slots[i].winnings;
             }
             this.text.innerHTML = "New Money: " + this.money + "<br>"; //Update money on screen
+        }
+        restart(instances){
+            this.money = 100;
+            //Write money to screen
+            this.text = document.getElementById("Money");
+            this.text.innerHTML += "Current Money: " + this.money + "<br>";
+            //Create slot machines
+            for(let i in this.slots){ //Delete the initial batch of slots
+                this.slots[i].div.remove();
+                delete this.slots[i];
+            }
+            for(var i = 0; i < instances; i++){
+                this.slots[i] = new slotMachine;
+            }
+            //Change play button to play
+            var div = document.getElementById("playButton");
+            div.innerHTML = "Spin";
+            //Change slots back to default number
+            document.getElementById("amount").elements[0].value = 3;
         }
     }
     function play(){ //Global function to call playAll from main
@@ -130,6 +147,9 @@
         </style>
     </head>
     <body>
+        <div class="box">
+            <h1 class="title">Lets Go Gambling!</h1>
+        </div>
         <div class="flexBox">
             <div class="screen" id="screen">
                 <h1>Lets Go Gambling!</h1>
@@ -137,29 +157,31 @@
                 <form id="amount">
                     <label>Enter an Amount:</label>
                     <input type="text" name="slots" value="3" style="width:100px"><br><br>
-                    <button onclick="play()">Spin</button>
+                    <button id="playButton" onclick="play()">Spin</button>
                 </form>
                 <p id="Money"></p>
                 <div class="slots" id="slots"></div>
             </div>
+            <div class="greenBox">
+                <h2 class="credits">Image Credits</h2>
+                <div class="flexbox">
+                    <div class="creditRoles">
+                        <h3 class="text">Numbers</h3>
+                    </div>
+                    <div class="creditLinks">
+                        <h3 class="text">
+                            <a class="credit" target="_blank" href="https://www.thecompliancecenter.com/product/dc-100x4w/">icc Compliance Center</a>
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+                <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            </div>
             <script>
                 var mymain = new main(3);
             </script>
-            <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-            <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
-        </div>
-        <div class="box">
-            <h2 class="credits">Image Credits</h2>
-            <div class="flexbox">
-                <div class="creditRoles">
-                    <h3 class="text">Numbers</h3>
-                </div>
-                <div class="creditLinks">
-                    <h3 class="text">
-                        <a class="credit" target="_blank" href="https://www.thecompliancecenter.com/product/dc-100x4w/">icc Compliance Center</a>
-                    </h3>
-                </div>
-            </div>
         </div>
     </body>
 </html>

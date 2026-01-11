@@ -7,7 +7,7 @@ div.box{
     min-width: fit-content;
     height: max-content;
     background-color: black;
-    margin: auto;
+    margin: 0;
 }
 div.flexBox{
     display: flex;
@@ -16,7 +16,7 @@ div.flexBox{
     background-color: black;
     width: 100%;
     min-width: 900px;
-    margin: auto;
+    margin: 0;
     float: center;
 }
 div.game{
@@ -117,6 +117,27 @@ div.story{
     font-size: 13px;
     width: 600px;
     height: max-content;
+    min-height: 635px;
     text-align: left;
     padding-left: 5px;
+}
+div.greenBox{
+    border: 3px solid lime;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    margin-left: 5px;
+    margin-right: 5px;
+    width: 100%;
+    padding-left: 5px;
+}
+div.gameBox{
+    text-align: center; 
+    background-color: white; 
+    border: 3px solid lime; 
+    width: 650px; 
+    margin-top: 5px; 
+    margin-bottom: 5px; 
+    margin-left: 5px; 
+    margin-right: 5px; 
+    padding: 5px;
 }

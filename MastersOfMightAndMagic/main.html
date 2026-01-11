@@ -27,7 +27,7 @@
             ctx.fillRect(this.x + 1, this.y + 58, (this.HP / this.MHP) * 62, 5);
         }
         die(){
-            ctx.clearRect(this.x + 1, this.y + 1, 62, 62);
+            ctx.clearRect(this.x, this.y, 64, 64);
             delete this.PIC;
         }
     }
@@ -159,6 +159,10 @@
             ctx.clearRect(64*x+1,64*y+1, 62, 62);
             this.HP = this.MHP;
         }
+        update(newX,newY){
+            super.update(newX,newY);
+            console.log(newX+" "+newY);
+        }
     }
     class mountain extends base {
         constructor(x, y) {
@@ -236,6 +240,20 @@
                     this.grid[i][j] = null;
                 }
             }
+            this.monsters = []; //Array to store the monsters
+            this.restart();
+            //Update contiously based on the buttons the player presses
+            this.update();
+        }
+        restart(){
+            //Clear the screen
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 12; j++) {
+                    delete this.grid[i][j];
+                    this.grid[i][j] = null;
+                }
+            }
             this.createWalls();
             this.hero = new player(128, 192);
             /*Logic for how the grid works:
@@ -251,6 +269,10 @@
             */
             this.grid[3][2] = 1; //Add the player to the grid.
             //Create the monsters and add them to the grid
+            for(let i = 0; i < this.monsters.length; i++){
+                delete this.monsters[i];
+                this.monsters[i] = null;
+            }
             this.monsters = [];
             this.monsters[0] = new bubbleMan(256, 448);
             this.monsters[1] = new bubbleMan(512, 192);
@@ -268,9 +290,6 @@
             //Add potions to the grid
             this.addPotion(192,64);
             this.addPotion(576,448);
-
-            //Update contiously based on the buttons the player presses
-            this.update();
         }
         createWalls() { //Add the mountains to the screen
             for (let i = 0; i < 12; i++) { //Create top and bottom mountains
@@ -426,18 +445,24 @@
                     this.killMonster(i);
                 }
             }
-            this.hero.die();
-            delete this.hero;
+            this.end();
             ctx.font = "100px Arial";
             ctx.fillStyle = "#000000";
             ctx.fillText("You Died.", 192, 192);
         }
         win(){
-            this.hero.die();
-            delete this.hero;
+            this.end();
             ctx.font = "35px Arial";
             ctx.fillStyle = "#000000";
             ctx.fillText("You Win! You are a master of Might and Magic!",16,192);
+        }
+        end(){
+            this.hero.die();
+            delete this.hero;
+            this.hero = null;
+            ctx.fillStyle = "#000000";
+            ctx.font = "35px Arial";
+            ctx.fillText("Click to restart.",285,239);
         }
         addPotion(x,y){
             ctx.fillStyle = "#8B4513";
@@ -470,6 +495,9 @@
             ctx.fill();
             this.grid[y/64][x/64] = 3;
         }
+        static click(){
+            mymain.restart();
+        }
     }
 </script>
 <html>
@@ -501,6 +529,7 @@
                     There are 2 health potions on the field which will restore the hero back up to max HP.<br>
                     To win the game, you must kill all six monsters.<br>
                     If the hero is killed, you lose.<br>
+                    To restart the game at any time, simply click anywhere inside the game.<br>
                     GLHF!<br>
                     <br>
                     Image Credits:<br>
@@ -511,12 +540,16 @@
                     CobraFiend: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Cobra_fiend">https://mightandmagic.fandom.com/wiki/Cobra_fiend</a><br>
                 </h3>
             </div>
-            <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-            <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            <div>
+                <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+                <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            </div>
             <script>
                 var canvas = document.getElementById('mycanvas');
                 var ctx = canvas.getContext('2d');
                 var mymain = new main;
+
+                canvas.addEventListener("click",main.click);
             </script>
         </div>
     </body>
