@@ -376,7 +376,7 @@
                     }
                     //Stop adding points to the shape.
                         //Yes, this means there will be unfinished shapes that may disappear
-                    //Set the lines and N-Polygonsto the correct primitive type
+                    //Set the lines and N-Polygons to the correct primitive type
                         //While they were being tempAdded, they were LINE_LOOP
                     if(this.curFill+this.curShape == 2 || this.curFill+this.curShape == 7){
                         this.shapes[this.shapes.length-1].primitiveType = gl.LINE_STRIP;
@@ -430,52 +430,54 @@
             <h1 class="title">PC Paint Program</h1>
         </div>
         <div class="flexBox">
-            <div class="gameBox">
-                <label for="shape">Shape</label>
-                <select id="shape">
-                    <option>None</option>
-                    <option value=0>Box</option>
-                    <option value=1>Circle</option>
-                    <option value=2>Line</option>
-                    <option value=3>Triangle</option>
-                    <option value=4>Custom</option>
-                </select>
-                <label for="color">Color</label>
-                <select id="color">
-                    <option>None</option>
-                    <option value=1>Black</option>
-                    <option value=2>Red</option>
-                    <option value=3>Green</option>
-                    <option value=4>Blue</option>
-                    <option value=5>Yellow</option>
-                    <option value=6>Purple</option>
-                    <option value=7>Cyan</option>
-                    <option value=8>White</option>
-                </select>
-                <label for="fill">Style</label>
-                <select id="fill">
-                    <option>None</option>
-                    <option value=0>Outline</option>
-                    <option value=5>Fill</option>
-                </select>
-                <label for="background">Background</label>
-                <select id="background">
-                    <option>None</option>
-                    <option value=1>Black</option>
-                    <option value=2>Red</option>
-                    <option value=3>Green</option>
-                    <option value=4>Blue</option>
-                    <option value=5>Yellow</option>
-                    <option value=6>Purple</option>
-                    <option value=7>Cyan</option>
-                    <option value=8>White</option>
-                </select>
-                <button id="reset">Reset</button><br>
+            <div class="gameBox" style="width: 650px;">
+                <div style="margin-top: 5px;">
+                    <label for="shape">Shape</label>
+                    <select id="shape">
+                        <option>None</option>
+                        <option value=0>Box</option>
+                        <option value=1>Circle</option>
+                        <option value=2>Line</option>
+                        <option value=3>Triangle</option>
+                        <option value=4>Custom</option>
+                    </select>
+                    <label for="color">Color</label>
+                    <select id="color">
+                        <option>None</option>
+                        <option value=1>Black</option>
+                        <option value=2>Red</option>
+                        <option value=3>Green</option>
+                        <option value=4>Blue</option>
+                        <option value=5>Yellow</option>
+                        <option value=6>Purple</option>
+                        <option value=7>Cyan</option>
+                        <option value=8>White</option>
+                    </select>
+                    <label for="fill">Style</label>
+                    <select id="fill">
+                        <option>None</option>
+                        <option value=0>Outline</option>
+                        <option value=5>Fill</option>
+                    </select>
+                    <label for="background">Background</label>
+                    <select id="background">
+                        <option>None</option>
+                        <option value=1>Black</option>
+                        <option value=2>Red</option>
+                        <option value=3>Green</option>
+                        <option value=4>Blue</option>
+                        <option value=5>Yellow</option>
+                        <option value=6>Purple</option>
+                        <option value=7>Cyan</option>
+                        <option value=8>White</option>
+                    </select>
+                    <button id="reset">Reset</button>
+                </div>
                 <canvas id="mycanvas" width="600" height="600" style = "border: 1px solid #000; margin-top: 2px;">
                     Your Browser does not support Canvas
                 </canvas>
             </div>
-            <div class="story">
+            <div class="story" style="height: 629.8px">
                 <h3 class="text">
                     Welcome to the PC Paint Program!<br><br>
                     Unlike most things on this website, this is not a game, rather it is a paint program.<br> 

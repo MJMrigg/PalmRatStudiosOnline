@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <script id="2dVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 frag_color;
+            uniform vec3 translate;
+            uniform vec3 rotate;
+            uniform vec3 scale;
+
+            uniform vec3 worldLoc;
+            uniform vec3 worldRotation;
+            uniform float n; //near
+            uniform float f; //far
+            uniform float r; //right
+            uniform float t; //top
+
+            vec4 lookAt(vec4 pos, vec3 r, vec3 u, vec3 f){
+                mat4 lookAt = mat4(
+                    r.x, r.y, r.z, 0.0,
+                    u.x, u.y, u.z, 0.0,
+                    f.x, f.y, f.z, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+                return pos*lookAt;
+            }
+
+            vec4 MoveCamera(vec4 pos){
+                //Just transformations with the world but inversed
+                vec3 cw = cos(worldRotation);
+                vec3 sw = sin(worldRotation);
+                float x = worldLoc.x;
+                float y = worldLoc.y;
+                float z = worldLoc.z;
+                mat4 translateView = mat4( //The camera is already looking down the negative z-axis, hence why it's not negative
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    -1.0*x,-1.0*y,z,1.0
+                );
+                mat4 rotateViewX = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,cw.x,sw.x,0.0,
+                    0.0,-1.0*sw.x,cw.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewY = mat4( //He only did the y rotation
+                    cw.y,0.0,-1.0*sw.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    sw.y,0.0,cw.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewZ = mat4(
+                    cw.z,sw.z,0.0,0.0,
+                    -1.0*sw.z,cw.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return (rotateViewZ*rotateViewY*rotateViewX)*translateView*pos;
+            }
+            
+            vec4 ApplyProjections(vec4 pos){
+                //Choose one of these to use. Probably ComplexPerspective
+                mat4 simpleOrtho = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 ComplexPerspective = mat4(
+                    n/r,0.0,0.0,0.0,
+                    0.0,n/t,0.0,0.0,
+                    0.0,0.0,-1.0*(f+n)/(f-n),-1.0,
+                    0.0,0.0,-2.0*(f*n)/(f-n),0.0
+                );
+                mat4 ComplexOrtho = mat4(
+                    1.0/r,0.0,0.0,0.0,
+                    0.0,1.0/t,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 SimplePerspective = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,-1.0,-1.0,
+                    0.0,0.0,-2.0,0.0
+                );
+                return ComplexPerspective*pos;
+            }
+            
+            vec4 translation(vec4 curPosition){
+                mat4 translationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    translate.x,translate.y,translate.z,1.0
+                );
+                return translationMatrix*curPosition;
+            }
+            vec4 rotation(vec4 curRotation){
+                vec3 c = cos(rotate);
+                vec3 s = sin(rotate);
+                mat4 xRotationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,c.x,s.x,0.0,
+                    0.0,-1.0*s.x,c.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 yRotateMatrix = mat4(
+                    c.y,0.0,-1.0*s.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    s.y,0.0,c.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 zRotateMatrix = mat4(
+                    c.z,s.z,0.0,0.0,
+                    -1.0*s.z,c.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return zRotateMatrix*yRotateMatrix*xRotationMatrix*curRotation;
+            }
+            vec4 scaleTransform(vec4 curScale){
+                mat4 scaleMatrix = mat4(
+                    scale.x,0.0,0.0,0.0,
+                    0.0,scale.y,0.0,0.0,
+                    0.0,0.0,scale.z,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return scaleMatrix*curScale;
+            }
+            
+            void main(){
+                frag_color = a_color;
+                vec4 worldCord = translation(rotation(scaleTransform(a_position)));
+                vec4 cameraSpace = MoveCamera(worldCord);
+                vec4 viewSpace = lookAt(worldCord, vec3 (1.0,0.0,0.0), vec3(0.0,0.0,-1.0), vec3(0.0,1.0,0.0));
+                gl_Position = ApplyProjections(cameraSpace);
+            }
+        </script>
+        <script id="2dFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 frag_color;
+            void main(){
+                gl_FragColor = vec4(frag_color,1);
+            }
+        </script>
+        <script>
+            class webgl{
+                constructor(){
+                    //Get shader source files
+                    this.vertexShaderSource = document.getElementById("2dVertexShader").text;
+                    this.fragmentShaderSource = document.getElementById("2dFragmentShader").text;
+                    //Create shaders
+                    this.vertexShader = this.createShader(gl.VERTEX_SHADER,this.vertexShaderSource);
+                    this.fragmentShader = this.createShader(gl.FRAGMENT_SHADER,this.fragmentShaderSource);
+                    //Create program
+                    this.program = this.createProgram(this.vertexShader,this.fragmentShader);
+                    //Setup Viewport
+                    gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
+                    gl.clearColor(0,0,0,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    //Render near objects over far objects
+                    gl.enable(gl.DEPTH_TEST);
+                    
+                    gl.useProgram(this.program);
+
+                    //Initialize cameraLoc and worldLoc uniforms
+                    var camLoc = gl.getUniformLocation(this.program,"worldLoc");
+                    gl.uniform3fv(camLoc,new Float32Array([0,0,0]));
+                    var worldLoc = gl.getUniformLocation(this.program,"worldRotation");
+                    gl.uniform3fv(worldLoc,new Float32Array([0,0,0]));
+                    //Initialize near, far, right, and top
+                    var tempLoc = gl.getUniformLocation(this.program,'n');
+                    gl.uniform1f(tempLoc,0.1); //Make this 0.001 for fun
+                    tempLoc = gl.getUniformLocation(this.program,'f');
+                    gl.uniform1f(tempLoc,500);
+                    tempLoc = gl.getUniformLocation(this.program,'r');
+                    gl.uniform1f(tempLoc,0.1);
+                    tempLoc = gl.getUniformLocation(this.program,'t');
+                    gl.uniform1f(tempLoc,0.06);
+
+                    //Remember, render the camera first, then objects. And apply camera transformations to objects.
+                    //For Camera control, treat it as a normal object except using worldLoc and worldRotation when rendering
+                    //Want to get another uniform? Make (0,0) in the top or bottom left corners
+                }
+                createShader(type,source){
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader,source);
+                    gl.compileShader(shader);
+                    var sucess = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
+                    if(sucess){
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+                createProgram(vertexShader,fragmentShader){
+                    var program = gl.createProgram();
+                    gl.attachShader(program,vertexShader);
+                    gl.attachShader(program,fragmentShader);
+                    gl.linkProgram(program);
+                    var sucess = gl.getProgramParameter(program,gl.LINK_STATUS);
+                    if(sucess){
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram();
+                }
+            }
+            class transformer{
+                constructor(){
+                    //Determine what direction the z, x, and y vectors face
+                    this.forward = [0,0,1];
+                    this.right = [1,0,0];
+                    this.up = [0,1,0];
+                }
+                //Rotate the vectors
+                doRotations(angles){
+                    //x, y, and z rotation matrices
+                    this.xRotationMatrix = [
+                        [1,0,0,0],
+                        [0,Math.cos(angles[0]),-1*Math.sin(angles[0]),0],
+                        [0,Math.sin(angles[0]),Math.cos(angles[0]),0],
+                        [0,0,0,1]
+                    ];
+                    this.yRotationMatrix = [
+                        [Math.cos(angles[1]),0,Math.sin(angles[1]),0],
+                        [0,1,0,0],
+                        [-1*Math.sin(angles[1]),0,Math.cos(angles[1]),0],
+                        [0,0,0,1]
+                    ];
+                    this.zRotationMatrix = [
+                        [Math.cos(angles[2]),-1*Math.sin(angles[2]),0,0],
+                        [Math.sin(angles[2]),Math.cos(angles[2]),0,0],
+                        [0,0,1,0],
+                        [0,0,0,1]
+                    ];
+                    //Transform each vector
+                    this.forward = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,0,1,0])));
+                    this.right = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[1,0,0,0])));
+                    this.up = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,1,0,0])));
+                }
+                //Literally just multiplying two matrices
+                crossMultiply(u,v){
+                    return [
+                        u[0][0]*v[0] + u[0][1]*v[1] + u[0][2]*v[2] + u[0][3]*v[3],
+                        u[1][0]*v[0] + u[1][1]*v[1] + u[1][2]*v[2] + u[1][3]*v[3],
+                        u[2][0]*v[0] + u[2][1]*v[1] + u[2][2]*v[2] + u[2][3]*v[3],
+                        u[3][0]*v[0] + u[3][1]*v[1] + u[3][2]*v[2] + u[3][3]*v[3]
+                    ];
+                }
+            }
+            class object{
+                constructor(){
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.isTrigger = false;
+                    this.velocity = [0,0,0]; //Translation Speed
+                    this.angularVelocity = [0,0,0]; //Rotation Speed
+                    this.name = "default";
+                    this.id = 0;
+                    this.prefab; //Object type
+                    this.transform = new transformer(); //Transformer for the object's front facing vectors
+                }
+                handleCollision(object){}
+                update(){}
+                render(program){}
+                move(){
+                    var temp = [0,0,0];
+                    for(let i = 0; i < 3; i++){
+                        temp[i] = this.location[i];
+                        temp[i] += this.velocity[i];
+                        this.rotation[i] += this.angularVelocity[i];
+                    }
+                    //If the object is about to move off the map, don't let it
+                    if(Math.abs(temp[0]) > 100 || Math.abs(temp[1]) > 10 || Math.abs(temp[2]) > 100){
+                        //If it's a bullet, remove it
+                        if(this.prefab != camera){
+                            mymain.removeObject(this.id);
+                        }
+                        return;
+                    }
+                    if(!this.isTrigger){ //If this object is not a trigger object
+                        var noCollision = true; //Assume there is no collision
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this,mymain.solids[i].location,mymain.solids[i])){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                noCollision = false;
+                            }
+                        }
+                        //If no collision, move the object
+                        if(noCollision){
+                            for(let i = 0; i < 3; i++){
+                                this.location[i] = temp[i];
+                            }
+                        }
+                    }else{ //If this object IS a trigger object
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this,mymain.solids[i].location,mymain.solids[i])){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collision
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                            }
+                        }
+                        //Check all trigger objects
+                        for(var i in mymain.triggers){
+                            if(this == mymain.triggers[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a trigger object
+                            if(mymain.checkCollision(temp,this,mymain.triggers[i].location,mymain.triggers[i])){
+                                this.handleCollision(mymain.triggers[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.triggers[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                            }
+                        }
+                        //Move the object
+                        for(let i = 0; i < 3; i++){
+                            this.location[i] = temp[i];
+                        }
+                    }
+                }
+            }
+            class gameObject extends object{
+                constructor(){
+                    super();
+                    this.primitiveType = gl.TRIANGLES; //Default primitive type
+                    this.vertices = [];
+                    this.indices = [];
+                    //Buffers are null since there is no data buffered to them yet
+                    this.vertexBuffer = null;
+                    this.indexBuffer = null;
+                    this.collisionRadius = [];
+                }
+                render(program){
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+
+                    //Handle Vertices
+                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6*Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset);
+
+                    //Handle Colors
+                    var colorAttributeLocation = gl.getAttribLocation(program,"a_color");
+                    offset = 3*Float32Array.BYTES_PER_ELEMENT;
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation,size,type,normalize,stride,offset);
+
+                    //Handle Transformations
+                    var scaleLocation = gl.getUniformLocation(program,"scale");
+                    gl.uniform3fv(scaleLocation,new Float32Array(this.scale));
+                    var rotateLocation = gl.getUniformLocation(program,"rotate");
+                    gl.uniform3fv(rotateLocation,new Float32Array(this.rotation));
+                    var translateLocation = gl.getUniformLocation(program,"translate");
+                    gl.uniform3fv(translateLocation,new Float32Array(this.location));
+
+                    //Draw Shape
+                    offset = 0;
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer);
+                    gl.drawElements(gl.TRIANGLES,this.indices.length,gl.UNSIGNED_BYTE,offset);
+                }
+                //Since the objects will have their own vertices and indices, this function will be executed in thier constructors
+                initializeBuffers(){
+                    //Load all the data onto the vertex buffer now that the vertices been defined.
+                    this.vertexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.vertices),gl.STATIC_DRAW);
+                    //Load all the data onto the index buffer now that the indices been defined
+                    this.indexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer),
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint8Array(this.indices), gl.STATIC_DRAW);
+                }
+            }
+            class camera extends object{
+                constructor(){
+                    super();
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.collisionRadius = [0.15,0.15,0.15];
+                }
+                update(){
+                    this.transform.doRotations(this.rotation);
+                    if(mymain.checkKey("W")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.forward[i] * 0.05;
+                        }
+                    }else if(mymain.checkKey("S")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.forward[i] * -0.05;
+                        }
+                    }else{
+                        this.velocity[0] = 0;
+                        this.velocity[2] = 0;
+                    }
+                    if(mymain.checkKey("D")){
+                        this.angularVelocity[1] = 0.1;
+                    }else if(mymain.checkKey("A")){
+                        this.angularVelocity[1] = -0.1;
+                    }else{
+                        this.angularVelocity[1] = 0;
+                    }
+                    if(mymain.checkKey("Z") || mymain.checkKey("Q")){
+                        this.velocity[1] = 0.05;
+                    }else if(mymain.checkKey("X") || mymain.checkKey("E")){
+                        this.velocity[1] = -0.05;
+                    }else{
+                        this.velocity[1] = 0;
+                    }
+                    //Secret feature: Bullet train!
+                    if(mymain.checkKey(String.fromCharCode(192))){
+                        this.shoot();
+                    }
+                    this.move();
+                }
+                render(program){
+                    var worldLocation = gl.getUniformLocation(program,"worldLoc");
+                    gl.uniform3fv(worldLocation,this.location);
+                    var worldRotationLocation = gl.getUniformLocation(program,"worldRotation");
+                    gl.uniform3fv(worldRotationLocation,this.rotation);
+                }
+                shoot(){
+                    //Place bullet in front of camera
+                    var bulletRotation = [this.rotation[0]-Math.PI,this.rotation[1],this.rotation[2]-Math.PI];
+                    this.transform.doRotations(bulletRotation);
+                    var front = this.transform.forward;
+                    var bulletLocation = [this.location[0]+front[0]*0.2,this.location[1],(this.location[2]*-1)+front[2]*0.2];
+                    mymain.addObject(1,bullet,bulletLocation,bulletRotation,[1,1,1]);
+                }
+                handleCollision(object){
+                    if(object.prefab == bullet){
+                        mymain.removeObject(object.id);
+                    }
+                }
+            }
+            class asteroid extends gameObject{
+                constructor(){
+                    super();
+                    //Which axis the asteriod will rotate around
+                    this.rotationAxis = Math.floor(Math.random()*(2-0+1)+0);
+                    this.health = 3;
+                }
+                update(){
+                    //Rotate the asteriod around its axis
+                    this.rotation[this.rotationAxis] += Math.floor(Math.random()*(50-1+1)+1)*0.01;
+                }
+                handleCollision(object){
+                    //If it gets hit by a bullet, take one health away and remove the bullet
+                    if(object.prefab == bullet){
+                        this.health -= 1;
+                        mymain.removeObject(object.id);
+                    }
+                    //If the health is at 0, remove the asteriod, as it has been destroyed
+                    if(this.health <= 0){
+                        mymain.removeObject(this.id);
+                        mymain.setScore(mymain.asteriodsRemaining-1);
+                    }
+                }
+            }
+            class asteroid1 extends asteroid{
+                constructor(){
+                    super();
+                    this.vertices = [
+                        0,0.1,0,        Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        0,-0.1,0,       Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        0.1,0,0.1,      Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        0.1,0,-0.1,     Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        -0.1,0,-0.1,    Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        -0.1,0,0.1,     Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0
+                    ];
+                    this.indices = [
+                        0,2,3,
+                        0,2,5,
+                        0,3,4,
+                        0,4,5,
+                        1,2,3,
+                        1,2,5,
+                        1,3,4,
+                        1,4,5,
+                    ];
+                    this.initializeBuffers();
+                    this.collisionRadius = [0.1,0.1,0.1];
+                }
+            }
+            class asteroid2 extends asteroid{
+                constructor(){
+                    super();
+                    this.collisionRadius = [0.1,0.1,0.1]
+                    //Add top
+                    for(let i = 0; i < 6; i++){
+                        this.vertices.push(
+                            Math.cos((60*i)*(Math.PI/180))*0.1,
+                            0.1,
+                            Math.sin((60*i)*(Math.PI/180))*0.1,
+                            Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        );
+                    }
+                    //Add bottom
+                    for(let i = 0; i < 6; i++){
+                        this.vertices.push(
+                            Math.cos((60*i)*(Math.PI/180))*0.1,
+                            -0.1,
+                            Math.sin((60*i)*(Math.PI/180))*0.1,
+                            Math.floor(Math.random()*(10-1+1)+1)*0.1,0,0,
+                        );
+                    }
+                    //Set Indices
+                    //Top and Bottom
+                    for(let i = 0; i < 2; i++){
+                        this.indices.push(0+(i*6),1+(i*6),5+(i*6));
+                        this.indices.push(1+(i*6),2+(i*6),5+(i*6));
+                        this.indices.push(2+(i*6),3+(i*6),4+(i*6));
+                        this.indices.push(2+(i*6),4+(i*6),5+(i*6));
+                    }
+                    //Sides
+                    for(let i = 0; i < 5; i++){
+                        this.indices.push(i,i+1,i+7);
+                        this.indices.push(i,i+6,i+7);
+                    }
+                    //Edge case
+                    this.indices.push(
+                        5,0,6,
+                        5,11,6
+                    );
+                    this.initializeBuffers();
+                }
+            }
+            class bullet extends gameObject{
+                constructor(){
+                    super();
+                    this.isTrigger = true;
+                    //Set vertices
+                    this.vertices = [
+                        0,0,0,  1,0.5,0
+                    ];
+                    this.collisionRadius = [0.025,0.025,0.025];
+                    for(let i = 0; i <= 40; i++){
+                        this.vertices.push(
+                            this.collisionRadius[0]*Math.cos((9*i)*(Math.PI/180)),
+                            this.collisionRadius[1]*Math.sin((9*i)*(Math.PI/180)),
+                            0, 
+                            1,0.5,0
+                        );
+                    }
+                    //Set Indices
+                    for(let i = 1; i < this.vertices.length/6; i++){
+                        this.indices.push(0,i,i+1);
+                    }
+                    //Intialize the buffer now that the vertices and indices have been defined
+                    this.initializeBuffers();
+                    //Start the countdown for the bullet to expire
+                    //That way if there are a hundred bullets, they'll fizzle out and die to prevent lag
+                    this.expire = 0;
+                }
+                update(){
+                    this.transform.doRotations(this.rotation);
+                    for(let i = 0; i < 3; i++){
+                        this.velocity[i] = this.transform.forward[i] * 0.005;
+                    }
+                    this.move();
+                    //Check to make sure the bullet hasn't left the map
+                    for(let i = 0; i < 3; i++){
+                        if(this.location[i] >= 100){
+                            //If it has, remove it
+                            this.remove();
+                        }
+                    }
+                    //Continue the countdown
+                    this.expire += 1;
+                    if(this.expire >= 30*60){ //60fps
+                        //If 30 seconds have passed, remove the bullet
+                        this.remove();
+                    }
+                }
+                handleCollision(object){
+                    if(object.prefab == camera){
+                        this.remove();
+                    }
+                }
+                remove(){
+                    mymain.removeObject(this.id);
+                }
+            }
+            class main{
+                constructor(){
+                    this.webgl = new webgl;
+                    //Object arrays
+                    this.visuals = [];
+                    this.triggers = [];
+                    this.solids = [];
+                    this.keys = []; //Keys that are pressed
+                    this.scoreCard = document.getElementById("score");
+                    this.winScreen = document.getElementById("winScreen");
+                    this.restart();
+                }
+                restart(){
+                    //Remove all game objects
+                    this.objectCounter = 0;
+                    for(let i in this.visuals){
+                        this.removeObject(this.triggers[i].id);
+                    }
+                    for(let i in this.triggers){
+                        this.removeObject(this.triggers[i].id);
+                    }
+                    for(let i in this.solids){
+                        this.removeObject(this.solids[i].id);
+                    }
+                    //Turn off all keys
+                    for(let i in this.keys){
+                        this.keys[i] = false;
+                    }
+                    //Reset camera
+                    this.cam = this.addObject(2,camera,[0,0,0],[0,0,0],[1,1,1]);
+                    //Add asteriods
+                    this.generateAsteroids();
+                    //Mark game as not ended
+                    this.end = false;
+                    //Hide the win screen
+                    this.winScreen.style = "display: none";
+                }
+                addObject(type,prefab,location,rotation,scale){
+                    var temp = new prefab; //Create Object
+                    //Set properties
+                    var id = "ID"+this.objectCounter
+                    temp.id = id;
+                    this.objectCounter++;
+                    temp.prefab = prefab;
+                    for(let i = 0; i < 3; i++){
+                        temp.location[i] = location[i];
+                        temp.rotation[i] = rotation[i];
+                        temp.scale[i] = scale[i];
+                        temp.collisionRadius[i] *= scale[i];
+                    }
+                    //Add to array
+                    switch(type){
+                        case 0:
+                            this.visuals[id] = temp;
+                            break;
+                        case 1:
+                            this.triggers[id] = temp;
+                            break;
+                        case 2:
+                            this.solids[id] = temp;
+                            break;
+                        default:
+                            console.error("Error: "+type+" is not a valid collision type");
+                            break;
+                    }
+                    return temp;
+                }
+                removeObject(id){
+                    if(id in this.visuals){
+                        delete this.visuals[id];
+                    }
+                    if(id in this.triggers){
+                        delete this.triggers[id];
+                    }
+                    if(id in this.solids){
+                        delete this.solids[id];
+                    }
+                }
+                updateAll(){
+                    for(var i in this.visuals){
+                        this.visuals[i].update();
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].update();
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].update();
+                    }
+                }
+                renderAll(){
+                    gl.clearColor(0,0,0,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    for(var i in this.visuals){
+                        this.visuals[i].render(this.webgl.program);
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].render(this.webgl.program);
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].render(this.webgl.program);
+                    }
+                }
+                checkCollision(object1Location,object1,object2Location,object2){
+                    //If x, y, and z distances are less than their collision radii put together, return true
+                    var xRange = object1.collisionRadius[0] + object2.collisionRadius[0];
+                    var yRange = object1.collisionRadius[1] + object2.collisionRadius[1];
+                    var zRange = object1.collisionRadius[2] + object2.collisionRadius[2];
+                    var z1 = object1Location[2];
+                    //Edge case: If object1 is the camera, multiple z by negative 1
+                    if(object1.prefab == camera){
+                        z1 *= -1;
+                    }
+                    var xDistance = Math.abs(object1Location[0]-object2Location[0]);
+                    var yDistance = Math.abs(object1Location[1]-object2Location[1]);
+                    var zDistance = Math.abs(z1-object2Location[2]);
+                    if(xDistance < xRange && yDistance < yRange && zDistance < zRange){
+                        return true;
+                    }
+                    return false;
+                }
+                generateAsteroids(){
+                    var prefabs = [asteroid1,asteroid2];
+                    //Generate 200 asteroids
+                    for(let i = 0; i < 200; i++){
+                        //Generate coorinates
+                        var loc = [
+                            Math.floor(Math.random()*(50-0+1)+0)-25,
+                            Math.floor(Math.random()*(10-0+1)+0)-5,
+                            Math.floor(Math.random()*(50-0+1)+0)-25
+                        ];
+                        //Generate rotations
+                        var rot = [
+                            Math.floor(Math.random()*(360-0+1)+0)*(Math.PI/180),
+                            Math.floor(Math.random()*(360-0+1)+0)*(Math.PI/180),
+                            Math.floor(Math.random()*(360-0+1)+0)*(Math.PI/180)
+                        ];
+                        //Generate scale
+                        var scale = [
+                            Math.floor(Math.random()*(5-1+1)+1),
+                            Math.floor(Math.random()*(5-1+1)+1),
+                            Math.floor(Math.random()*(5-1+1)+1)
+                        ];
+                        //Make sure the asteriod doesn't spawn on top of the player
+                        for(let i = 0; i < 3; i++){
+                            if(Math.abs(location[i]) < 0){
+                                location[i] += scale[i];
+                            }
+                        }
+                        //Select prefab
+                        var prefab = prefabs[Math.floor(Math.random()*((prefabs.length-1)-0+1)+0)];
+                        //Add asteroid
+                        this.addObject(2,prefab,loc,rot,scale);
+                    }
+                    //Set asteriods
+                    this.setScore(200);
+                }
+                setScore(change){
+                    this.asteriodsRemaining = change;
+                    this.scoreCard.innerText = "Asteriods Remaining: "+this.asteriodsRemaining;
+                    if(this.asteriodsRemaining == 0){
+                        alert("You have destroyed all of the asteriods. You win! Press enter to restart.");
+                        this.scoreCard.innerText += " | You win! Press enter to restart.";
+                        this.winScreen.style = "display: block";
+                    }
+                }
+
+                keyDown(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = true;
+                }
+                keyUp(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = false;
+                }
+                checkKey(key){
+                    return this.keys[key];
+                }
+                mouseDown(event){
+                    this.cam.shoot();
+                }
+
+                static keyD(event){
+                    mymain.keyDown(event);
+                }
+                static keyU(event){
+                    mymain.keyUp(event);
+                }
+                static mouseD(event){
+                    mymain.mouseDown(event);
+                }
+                static mainLoop(){
+                    if(mymain.checkKey(String.fromCharCode(13)) == true){
+                        mymain.restart();
+                    }
+                    if(!mymain.end){
+                        mymain.updateAll();
+                        mymain.renderAll();
+                        requestAnimationFrame(main.mainLoop);
+                    }
+                }
+            }
+        </script>
+        <link rel="stylesheet" href="../styles.css">
+    </head>
+    <body>
+        <div class="box">
+            <h1 class="title">Asteroid Shooter</h1>
+        </div>
+        <div class="flexBox">
+            <div id="gameBox" class="greenGameBox">
+                <p class="blackScore" id="score">Error</p>
+                <div class="container" id="canvasContainer">
+                    <canvas id="mycanvas" width="600" height="600">
+                        YOUR BROWSER DOES NOT SUPPORT CANVAS
+                    </canvas>
+                    <div class="popMessage" id="winScreen" style="top: 45%; left: 20%;">You win! Press enter to restart.</div>
+                </div>
+            </div>
+            <div id="story" class="story">
+                <h3 class="text">
+                    Welcome to Asteriod Shooter!<br>
+                    <br>
+                    In this game, you play as a spaceship pilot, tasked with shooting a whole field of asteriods so that the scavengers can come and fetch the bits.
+                    However, there are a lot of them. As such, you built in the latest gadget in radar technology, the Detectotron 9000, perfect for scanning entire asteriod fields!<br>
+                    With this installed in your spaceship, you have it update your viewport every time you blow up and asteriod.<br>
+                    With that installed, you head out to the asteroid field, ready to blow stuff up!<br>
+                    <br>
+                    How to play:<br>
+                    Use W and S to move forward and backward.<br>
+                    Use A and D to rotate your ship to the left and right.<br>
+                    Use Q and E or Z and X to move your ship up or down.<br>
+                    Left click to shoot a bullet.<br>
+                    Shoot bullets at asteroids to damage them.<br>
+                    Asteroids have 3 health and bullets do 1 damage, so you'll have to shoot it 3 times.<br>
+                    There are 200 asteroids. Once you destroy all of them, you win!<br>
+                    To restart the game at any time, press enter.<br>
+                    There is also a cheat code involving another key on your keyboard. Try to find it!<br>
+                    GLHF!<br>
+                </h3>
+            </div>
+            <script>
+                var canvas = document.getElementById("mycanvas");
+                //Adjust element sizes based on the canvase
+                var canvasContainer = document.getElementById("canvasContainer");
+                canvasContainer.style = "width: "+canvas.width+"px; height: "+canvas.height+"px;";
+                var story = document.getElementById("story");
+                var gameBox = document.getElementById("gameBox");
+                story.style.height = gameBox.clientHeight+"px";
+                //Set up the game
+                var gl = canvas.getContext("webgl");
+                var mymain = new main;
+                //Add event key listeners and start the game
+                window.onkeydown = main.keyD;
+                window.onkeyup = main.keyU;
+                canvas.addEventListener("click",main.mouseD);
+                requestAnimationFrame(main.mainLoop);
+            </script>
+            <div>
+                <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+                <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,34 @@
+this.sides = 3;
+this.layers = 3;
+this.radius = 0.1;
+//Add vertices
+this.y = this.location[1]-this.radius;
+this.vertices.push(0,this.y,0);
+for(let i = 0; i < this.layers; i++){
+	this.y += this.radius/((this.layers+1)/2);
+	var r = Math.sqrt((this.radius*this.radius)-(this.y*this.y));
+	for(let j = 0; j < this.sides; j++){
+		var radians = ((360/this.sides)*(Math.PI/180));
+		this.vertices.push(Math.cos(radians)*r),this.y,Math.sin(radians)*r,	0.0,1.0,0.0);
+	}
+}
+this.y += this.radius/(this.layers-1);
+this.vertices.push(0,this.y,0,	0.0,1.0,0.0);
+//Add indices
+//Top and Bottom
+var top = (this.sides*this.layers)+1;
+for(let i = 0; i < this.sides; i++){
+	this.indices.push(0,i+1,i+2);
+	this.indices.push(top,top-(i+1),top-(i+2));
+}
+this.indices.push(0,this.sides,1);
+this.indices.push(top,top-this.sides,top-1);
+//Layers
+for(let i = 0; i < this.layers-1; i++){
+	for(let j = 1; j < this.sides; j++){
+		this.indices.push(j+(i*this.sides), j+((i+1)*this.sides), j+1+((i+1)*this.sides));
+		this.indices.push(j+(i*this.sides), j+1+(i*this.sides), j+1+((i+1)*this.sides));
+	}
+	this.indices.push((i+1)*this.sides, (i+2)*this.sides, (i+1)*this.sides+1);
+	this.indices.push((i+1)*this.sides, (i*this.sides)+1, (i+1)*this.sides+1);
+}

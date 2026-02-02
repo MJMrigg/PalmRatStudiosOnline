@@ -1,0 +1,1252 @@
+<!DOCTYPE = html>
+<html lang="en">
+    <title>"The Spooky Forest"</title>
+    <head>
+        <script id="2dVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 frag_color;
+            uniform vec3 translate;
+            uniform vec3 rotate;
+            uniform vec3 scale;
+
+            uniform vec3 worldLoc;
+            uniform vec3 worldRotation;
+            uniform float n; //near
+            uniform float f; //far
+            uniform float r; //right
+            uniform float t; //top
+
+            //Lighting
+            uniform vec3 light_positions[5];
+            uniform vec3 spot_light_position;
+            uniform vec3 ufo_light_position;
+            varying vec3 fakeNormal;
+            varying vec3 v_surfaceToLights[5];
+            varying vec3 v_spot_surfaceTolight;
+            varying vec3 v_moon_surfaceToLight;
+            varying vec3 v_ufo_surfaceToLight;
+
+
+            vec4 MoveCamera(vec4 pos){
+                //Just transformations with the world but inversed
+                vec3 cw = cos(worldRotation);
+                vec3 sw = sin(worldRotation);
+                float x = worldLoc.x;
+                float y = worldLoc.y;
+                float z = worldLoc.z;
+                mat4 translateView = mat4( //The camera is already looking down the negative z-axis, hence why it's not negative
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    -1.0*x,-1.0*y,z,1.0
+                );
+                mat4 rotateViewX = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,cw.x,sw.x,0.0,
+                    0.0,-1.0*sw.x,cw.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewY = mat4( //He only did the y rotation
+                    cw.y,0.0,-1.0*sw.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    sw.y,0.0,cw.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewZ = mat4(
+                    cw.z,sw.z,0.0,0.0,
+                    -1.0*sw.z,cw.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return (rotateViewZ*rotateViewY*rotateViewX)*translateView*pos;
+            }
+            
+            vec4 ApplyProjections(vec4 pos){
+                //Choose one of these to use. Probably ComplexPerspective
+                mat4 simpleOrtho = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 ComplexPerspective = mat4(
+                    n/r,0.0,0.0,0.0,
+                    0.0,n/t,0.0,0.0,
+                    0.0,0.0,-1.0*(f+n)/(f-n),-1.0,
+                    0.0,0.0,-2.0*(f*n)/(f-n),0.0
+                );
+                mat4 ComplexOrtho = mat4(
+                    1.0/r,0.0,0.0,0.0,
+                    0.0,1.0/t,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 SimplePerspective = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,-1.0,-1.0,
+                    0.0,0.0,-2.0,0.0
+                );
+                return ComplexPerspective*pos;
+            }
+            
+            vec4 translation(vec4 curPosition){
+                mat4 translationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    translate.x,translate.y,translate.z,1.0
+                );
+                return translationMatrix*curPosition;
+            }
+            vec4 rotation(vec4 curRotation){
+                vec3 c = cos(rotate);
+                vec3 s = sin(rotate);
+                mat4 xRotationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,c.x,s.x,0.0,
+                    0.0,-1.0*s.x,c.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 yRotateMatrix = mat4(
+                    c.y,0.0,-1.0*s.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    s.y,0.0,c.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 zRotateMatrix = mat4(
+                    c.z,s.z,0.0,0.0,
+                    -1.0*s.z,c.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return zRotateMatrix*yRotateMatrix*xRotationMatrix*curRotation;
+            }
+            vec4 scaleTransform(vec4 curScale){
+                mat4 scaleMatrix = mat4(
+                    scale.x,0.0,0.0,0.0,
+                    0.0,scale.y,0.0,0.0,
+                    0.0,0.0,scale.z,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return scaleMatrix*curScale;
+            }
+            
+            void main(){
+                //Handle Lighting
+                //Get distance from vertex to center of the object
+                if(length(a_position)<5.0){
+                    fakeNormal = rotation(a_position).xyz; //Calculate normal with regards of the object's rotation
+                    //This ensures any shine does not rotate with the object
+                }else{
+                    fakeNormal = vec3(0.0,1.0,0.0); //Larger objects will have real normals
+                }
+                vec4 worldSpace = translation(rotation(scaleTransform(a_position)));
+                for(int i = 0; i < 5; i++){ //Get directions of point lights
+                    v_surfaceToLights[i] = light_positions[i]-worldSpace.xyz;
+                }
+                v_spot_surfaceTolight = spot_light_position-worldSpace.xyz; //Position spot light
+                v_moon_surfaceToLight = vec3(20,5,20)-worldSpace.xyz; //Position moon light
+                v_ufo_surfaceToLight = ufo_light_position-worldSpace.xyz; //Position UFO light
+
+                //vec4 worldSpace = translation(rotation(scaleTransform(a_position)));
+                frag_color = a_color;
+                vec4 cameraSpace = MoveCamera(worldSpace);
+                gl_Position = ApplyProjections(cameraSpace);
+            }
+        </script>
+        <script id="2dFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 frag_color;
+
+            //Lighting
+            varying vec3 fakeNormal;
+            varying vec3 v_surfaceToLights[5];
+            varying vec3 v_spot_surfaceTolight;
+            varying vec3 v_moon_surfaceToLight;
+            varying vec3 v_ufo_surfaceToLight;
+            
+            void main(){
+                gl_FragColor = vec4(frag_color,1); //Set color
+
+                //Handle how ambient light affects color
+                float ambient = 0.1;
+                gl_FragColor = vec4(ambient*frag_color,1);
+
+                //Handle how directional light affects color
+                float directional_light = dot(normalize(fakeNormal),normalize(vec3(20,5,20))*0.25);
+                if(directional_light < 0.0){
+                    directional_light = 0.0;
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light),1);
+
+                //Handle how the point lights affect the color
+                vec3 point_lights;
+                for(int i = 0; i < 5; i++){
+                    float a_point_light = dot(normalize(fakeNormal),normalize(v_surfaceToLights[i]/length(v_surfaceToLights[i])));
+                    if(a_point_light < 0.0){
+                        a_point_light = 0.0;
+                    }
+                    point_lights += a_point_light;
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights),1);
+                
+                //Handle how the spot light affects the color
+                float spot_light = dot(normalize(v_spot_surfaceTolight),vec3(0,1,0)); //vec3=The opposite direction of the spot light
+                float spot_light_power = 0.0;
+                if(spot_light >= 0.87){ //This makes the cone. The closer it is to 1.0, the smaller the cone
+                    //Literally a point light
+                    spot_light_power = dot(normalize(fakeNormal),normalize(v_spot_surfaceTolight));
+                    if(spot_light_power < 0.0){
+                        spot_light_power = 0.0;
+                    }
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights + spot_light_power),1);
+
+                //Add moonlight, which is a spot light pointing at the moon
+                float moon_light = dot(normalize(v_moon_surfaceToLight),vec3(20,5,20));
+                float moon_light_power = 0.0;
+                if(moon_light >= 0.9){
+                    moon_light_power = dot(normalize(fakeNormal),normalize(v_moon_surfaceToLight));
+                    if(moon_light_power < 0.0){
+                        moon_light_power = 0.0;
+                    }
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights + spot_light_power + moon_light_power),1);
+
+                //Add UFO light, which is a spot light pointing at the bottom of the ufo
+                float ufo_light = dot(normalize(v_ufo_surfaceToLight),vec3(0,-1,0));
+                float ufo_light_power = 0.0;
+                if(ufo_light >= 0.85){
+                    ufo_light_power = dot(normalize(fakeNormal),normalize(v_ufo_surfaceToLight));
+                    if(ufo_light_power < 0.0){
+                        ufo_light_power = 0.0;
+                    }
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights + spot_light_power + moon_light_power + ufo_light_power),1);
+            }
+        </script>
+        <script>
+            class webgl{
+                constructor(){
+                    //Get shader source files
+                    this.vertexShaderSource = document.getElementById("2dVertexShader").text;
+                    this.fragmentShaderSource = document.getElementById("2dFragmentShader").text;
+                    //Create shaders
+                    this.vertexShader = this.createShader(gl.VERTEX_SHADER,this.vertexShaderSource);
+                    this.fragmentShader = this.createShader(gl.FRAGMENT_SHADER,this.fragmentShaderSource);
+                    //Create program
+                    this.program = this.createProgram(this.vertexShader,this.fragmentShader);
+                    //Setup Viewport
+                    gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
+                    gl.clearColor(0,0,0,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    //Render near objects over far objects
+                    gl.enable(gl.DEPTH_TEST);
+                    
+                    gl.useProgram(this.program);
+
+                    //Initialize cameraLoc and worldLoc uniforms
+                    var camLoc = gl.getUniformLocation(this.program,"worldLoc");
+                    gl.uniform3fv(camLoc,new Float32Array([0,0,0]));
+                    var worldLoc = gl.getUniformLocation(this.program,"worldRotation");
+                    gl.uniform3fv(worldLoc,new Float32Array([0,0,0]));
+                    //Initialize near, far, right, and top
+                    var tempLoc = gl.getUniformLocation(this.program,'n');
+                    gl.uniform1f(tempLoc,0.1); //Make this 0.001 for fun
+                    tempLoc = gl.getUniformLocation(this.program,'f');
+                    gl.uniform1f(tempLoc,500);
+                    tempLoc = gl.getUniformLocation(this.program,'r');
+                    gl.uniform1f(tempLoc,0.1);
+                    tempLoc = gl.getUniformLocation(this.program,'t');
+                    gl.uniform1f(tempLoc,0.06);
+
+                    //Remember, render the camera first, then objects. And apply camera transformations to objects.
+                    //For Camera control, treat it as a normal object except using worldLoc and worldRotation when rendering
+                    //Want to get another uniform? Make (0,0) in the top or bottom left corners
+                }
+                createShader(type,source){
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader,source);
+                    gl.compileShader(shader);
+                    var sucess = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
+                    if(sucess){
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+                createProgram(vertexShader,fragmentShader){
+                    var program = gl.createProgram();
+                    gl.attachShader(program,vertexShader);
+                    gl.attachShader(program,fragmentShader);
+                    gl.linkProgram(program);
+                    var sucess = gl.getProgramParameter(program,gl.LINK_STATUS);
+                    if(sucess){
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram();
+                }
+            }
+            class transformer{
+                constructor(){
+                    //Determine what direction the z, x, and y vectors face
+                    this.forward = [0,0,1];
+                    this.right = [1,0,0];
+                    this.up = [0,1,0];
+                }
+                //Rotate the vectors
+                doRotations(angles){
+                    //x, y, and z rotation matrices
+                    this.xRotationMatrix = [
+                        [1,0,0,0],
+                        [0,Math.cos(angles[0]),-1*Math.sin(angles[0]),0],
+                        [0,Math.sin(angles[0]),Math.cos(angles[0]),0],
+                        [0,0,0,1]
+                    ];
+                    this.yRotationMatrix = [
+                        [Math.cos(angles[1]),0,Math.sin(angles[1]),0],
+                        [0,1,0,0],
+                        [-1*Math.sin(angles[1]),0,Math.cos(angles[1]),0],
+                        [0,0,0,1]
+                    ];
+                    this.zRotationMatrix = [
+                        [Math.cos(angles[2]),-1*Math.sin(angles[2]),0,0],
+                        [Math.sin(angles[2]),Math.cos(angles[2]),0,0],
+                        [0,0,1,0],
+                        [0,0,0,1]
+                    ];
+                    //Transform each vector
+                    this.forward = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,0,1,0])));
+                    this.right = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[1,0,0,0])));
+                    this.up = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,1,0,0])));
+                }
+                //Literally just multiplying two matrices
+                crossMultiply(u,v){
+                    return [
+                        u[0][0]*v[0] + u[0][1]*v[1] + u[0][2]*v[2] + u[0][3]*v[3],
+                        u[1][0]*v[0] + u[1][1]*v[1] + u[1][2]*v[2] + u[1][3]*v[3],
+                        u[2][0]*v[0] + u[2][1]*v[1] + u[2][2]*v[2] + u[2][3]*v[3],
+                        u[3][0]*v[0] + u[3][1]*v[1] + u[3][2]*v[2] + u[3][3]*v[3]
+                    ];
+                }
+            }
+            class object{
+                constructor(){
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.isTrigger = false;
+                    this.velocity = [0,0,0]; //Translation Speed
+                    this.angularVelocity = [0,0,0]; //Rotation Speed
+                    this.name = "default";
+                    this.id = 0;
+                    this.prefab; //Object type
+                    this.transform = new transformer(); //Transformer for the object's front facing vectors
+                }
+                handleCollision(object){}
+                update(){}
+                render(program){}
+                move(){
+                    var temp = [0,0,0];
+                    for(let i = 0; i < 3; i++){
+                        temp[i] = this.location[i];
+                        temp[i] += this.velocity[i];
+                        this.rotation[i] += this.angularVelocity[i];
+                    }
+                    //If the object is about to move off the map, don't let it
+                    if(Math.abs(temp[0]) > 15 || Math.abs(temp[2]) > 15){
+                        return;
+                    }
+                    if(!this.isTrigger){ //If this object is not a trigger object
+                        var noCollision = true; //Assume there is no collision
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this,mymain.solids[i].location,mymain.solids[i])){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                noCollision = false;
+                            }
+                        }
+                        //If no collision, move the object
+                        if(noCollision){
+                            for(let i = 0; i < 3; i++){
+                                this.location[i] = temp[i];
+                            }
+                        }
+                    }else{ //If this object IS a trigger object
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this,mymain.solids[i].location,mymain.solids[i])){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collision
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                            }
+                        }
+                        //Check all trigger objects
+                        for(var i in mymain.triggers){
+                            if(this == mymain.triggers[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a trigger object
+                            if(mymain.checkCollision(temp,this,mymain.triggers[i].location,mymain.triggers[i])){
+                                this.handleCollision(mymain.triggers[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.triggers[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                            }
+                        }
+                        //Move the object
+                        for(let i = 0; i < 3; i++){
+                            this.location[i] = temp[i];
+                        }
+                    }
+                }
+            }
+            class gameObject extends object{
+                constructor(){
+                    super();
+                    this.primitiveType = gl.TRIANGLES; //Default primitive type
+                    this.vertices = [];
+                    this.indices = [];
+                    //Buffers are null since there is no data buffered to them yet
+                    this.vertexBuffer = null;
+                    this.indexBuffer = null;
+                    this.collisionRadius = [];
+                }
+                render(program){
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+
+                    //Handle Vertices
+                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 6*Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset);
+
+                    //Handle Colors
+                    var colorAttributeLocation = gl.getAttribLocation(program,"a_color");
+                    offset = 3*Float32Array.BYTES_PER_ELEMENT;
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation,size,type,normalize,stride,offset);
+
+                    //Handle Transformations
+                    var scaleLocation = gl.getUniformLocation(program,"scale");
+                    gl.uniform3fv(scaleLocation,new Float32Array(this.scale));
+                    var rotateLocation = gl.getUniformLocation(program,"rotate");
+                    gl.uniform3fv(rotateLocation,new Float32Array(this.rotation));
+                    var translateLocation = gl.getUniformLocation(program,"translate");
+                    gl.uniform3fv(translateLocation,new Float32Array(this.location));
+
+                    //Draw Shape
+                    offset = 0;
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer);
+                    gl.drawElements(gl.TRIANGLES,this.indices.length,gl.UNSIGNED_BYTE,offset);
+                }
+                //Since the objects will have their own vertices and indices, this function will be executed in thier constructors
+                initializeBuffers(){
+                    //Load all the data onto the vertex buffer now that the vertices been defined.
+                    this.vertexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.vertices),gl.STATIC_DRAW);
+                    //Load all the data onto the index buffer now that the indices been defined
+                    this.indexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer),
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint8Array(this.indices), gl.STATIC_DRAW);
+                }
+            }
+            class ground extends gameObject{
+                constructor(){
+                    super();
+                    this.collisionRadius = [15,0,15];
+                    //Add Vertices
+                    this.vertices.push(
+                        15,0,15,    0,1,0,
+                        -15,0,15,   0,1,0,
+                        -15,0,-15,  0,1,0,
+                        15,0,-15,   0,1,0
+                    );
+                    //Add Indices
+                    this.indices.push(
+                        0,1,2,  0,3,2
+                    );
+                    this.initializeBuffers();
+                }
+            }
+            class tree extends gameObject{
+                constructor(){
+                    super();
+                    //Add vertices
+                    this.height = 0.35;
+                    this.radius = 0.05;
+                    this.collisionRadius.push(this.radius,this.height,this.radius);
+                    //Top and Bottom
+                    for(let i = 0; i < 2; i++){
+                        this.vertices.push(
+                            this.radius,i*this.height,this.radius,        0.5,0.2,0,
+                            -1*this.radius,i*this.height,this.radius,     0.5,0.2,0,
+                            -1*this.radius,i*this.height,-1*this.radius,  0.5,0.2,0,
+                            this.radius,i*this.height,-1*this.radius,     0.5,0.2,0
+                        );
+                    }
+                    //Sides
+                    this.indices.push(
+                        0,4,7,  0,7,3,
+                        0,4,5,  0,5,1,
+                        1,5,6,  1,6,2,
+                        2,3,7,  2,7,6
+                    );
+                    //Intialize buffers
+                    this.initializeBuffers();
+                }
+            }
+            class leaves extends gameObject{
+                constructor(){
+                    super();
+                    this.radius = 0.1;
+                    this.collisionRadius.push(this.radius, this.radius, this.radius);
+                    //Leaves are spheres which are really just multi-sided shapes of varying radii stacked on top of one another
+                    this.sides = 12; //Sides the shapes have
+                    this.layers = 19; //Number of rings(MUST ALWAYS BE AN ODD NUMBER)
+                    //Add vertices
+                    //Bottom Point
+                    this.y = this.location[1]-this.radius; //Set y coordinate of bottom
+                    this.vertices.push(0,this.y,0, 0.0,1.0,0.0);
+                    //Layers
+                    for(let i = 0; i < this.layers; i++){
+                        this.y += this.radius/((this.layers+1)/2); //y coordinate of current layer
+                        var r = Math.sqrt((this.radius*this.radius)-(this.y*this.y)); //Radius of current ring
+                        for(let j = 0; j < this.sides; j++){
+                            var radians = (j*(360/this.sides))*(Math.PI/180);
+                            this.vertices.push(Math.cos(radians)*r,this.y,Math.sin(radians)*r,  0.0,1.0,0.0);
+                        }
+                    }
+                    //Top Point
+                    this.y += this.radius/((this.layers+1)/2); //Set y coordinate of top
+                    this.vertices.push(0.0,this.y,0.0,	0.0,1.0,0.0);
+                    //Add indices
+                    //Top and Bottom
+                    var top = (this.sides*this.layers)+1;
+                    for(let i = 0; i < this.sides; i++){
+                        this.indices.push(0.0,i+1,i+2);
+                        this.indices.push(top,top-(i+1),top-(i+2));
+                    }
+                    this.indices.push(0.0,this.sides,1.0);
+                    this.indices.push(top,top-this.sides,top-1);
+                    //Layers
+                    for(let i = 0; i < this.layers-1; i++){
+                        for(let j = 1; j < this.sides; j++){
+                            this.indices.push(j+(i*this.sides), j+((i+1)*this.sides), j+1+((i+1)*this.sides));
+                            this.indices.push(j+(i*this.sides), j+1+(i*this.sides), j+1+((i+1)*this.sides));
+                        }
+                        this.indices.push((i+1)*this.sides, (i+2)*this.sides, (i+1)*this.sides+1);
+                        this.indices.push((i+1)*this.sides, (i*this.sides)+1, (i+1)*this.sides+1);
+                    }
+                    //Intialize buffers
+                    this.initializeBuffers();
+                } //O(sides*layers)
+            }
+            class rock extends gameObject{
+                constructor(){
+                    super();
+                    this.collisionRadius = [0.12,0.12,0.12];
+                    this.color = Math.floor(Math.random()*(10-1+1)+1)*0.1;
+                    this.vertices = [
+                        0,0.1,0,        this.color,this.color,this.color,
+                        0,-0.1,0,       this.color,this.color,this.color,
+                        0.1,0,0.1,      this.color,this.color,this.color,
+                        0.1,0,-0.1,     this.color,this.color,this.color,
+                        -0.1,0,-0.1,    this.color,this.color,this.color,
+                        -0.1,0,0.1,     this.color,this.color,this.color
+                    ];
+                    this.indices = [
+                        0,2,3,
+                        0,2,5,
+                        0,3,4,
+                        0,4,5,
+                        1,2,3,
+                        1,2,5,
+                        1,3,4,
+                        1,4,5,
+                    ];
+                    this.initializeBuffers();
+                }
+            }
+            class lampPost extends gameObject{
+                constructor(){
+                    super();
+                    //Add vertices
+                    this.height = 0.15;
+                    this.radius = 0.01;
+                    this.collisionRadius.push(this.radius,this.height,this.radius);
+                    //Pole
+                    for(let i = 0; i < 2; i++){
+                        this.vertices.push(
+                            this.radius,i*this.height,this.radius,        0.2,0.2,0.2,
+                            -1*this.radius,i*this.height,this.radius,     0.2,0.2,0.2,
+                            -1*this.radius,i*this.height,-1*this.radius,  0.2,0.2,0.2,
+                            this.radius,i*this.height,-1*this.radius,     0.2,0.2,0.2
+                        );
+                    }
+                    //Light
+                    this.vertices.push(
+                        this.radius,this.height,this.radius,        1,1,1,
+                        -1*this.radius,this.height,this.radius,     1,1,1,
+                        -1*this.radius,this.height,-1*this.radius,  1,1,1,
+                        this.radius,this.height,-1*this.radius,     1,1,1,
+                        this.radius+0.01,this.height+0.03,this.radius+0.01,            1,1,1,
+                        -1*(this.radius+0.01),this.height+0.03,this.radius+0.01,       1,1,1,
+                        -1*(this.radius+0.01),this.height+0.03,-1*(this.radius+0.01),  1,1,1,
+                        this.radius+0.01,this.height+0.03,-1*(this.radius+0.01),       1,1,1
+                    );
+                    //Top
+                    this.vertices.push(
+                        this.radius+0.01,this.height+0.03,this.radius+0.01,            0.2,0.2,0.2,
+                        -1*(this.radius+0.01),this.height+0.03,this.radius+0.01,       0.2,0.2,0.2,
+                        -1*(this.radius+0.01),this.height+0.03,-1*(this.radius+0.01),  0.2,0.2,0.2,
+                        this.radius+0.01,this.height+0.03,-1*(this.radius+0.01),       0.2,0.2,0.2,
+                        this.radius,this.height+0.04,this.radius,        0.2,0.2,0.2,
+                        -1*this.radius,this.height+0.04,this.radius,     0.2,0.2,0.2,
+                        -1*this.radius,this.height+0.04,-1*this.radius,  0.2,0.2,0.2,
+                        this.radius,this.height+0.04,-1*this.radius,     0.2,0.2,0.2,
+                    )
+                    //Add Indices
+                    //Top and Bottom of the pole
+                    for(let i = 0; i < 2; i++){
+                        this.indices.push(
+                            i,i+1,3,
+                            i+4,i+1+4,7
+                        );
+                    }
+                    //Sides of the Pole
+                    this.indices.push(
+                        0,4,7,  0,3,7,
+                        0,4,5,  0,1,4,
+                        1,2,6,  1,5,6,
+                        2,3,7,  2,6,7
+                    );
+                    //Light and Top
+                    for(let i = 0; i < 3; i++){
+                        this.indices.push(
+                            //Light
+                            8+i,12+i,13+i,
+                            8+i,9+i,13+i,
+                            //Top
+                            16+i,20+i,21+i,
+                            16+i,17+i,21+i
+                        );
+                    }
+                    this.indices.push(
+                        //Light
+                        11,8,12,  11,15,12,
+                        //Top
+                        19,23,20, 19,16,20,
+                        20,21,22, 20,23,22
+                    );
+                    //Intialize buffers
+                    this.initializeBuffers();
+                }
+            }
+            class ufo extends gameObject{
+                constructor(){
+                    super();
+                    this.isTrigger = true;
+                    this.collisionRadius = [0.5,10,0.5];
+                    this.movementPattern = 0; //Pattern of how the ufo is moving(changes depending on location)
+                    //Create ufo
+                    this.radius = 0.3;
+                    this.collisionRadius.push(this.radius, this.radius, this.radius);
+                    this.sides = 12; //Sides the shapes have
+                    this.layers = 3; //Number of rings(MUST ALWAYS BE AN ODD NUMBER)
+                    //Add vertices
+                    //Bottom Point
+                    this.radius = 1.5;
+                    this.y = -0.2; //Set y coordinate of bottom
+                    this.vertices.push(0,this.y,0, 1.0,1.0,1.0);
+                    //Layers
+                    for(let i = 0; i < this.layers; i++){
+                        var r = Math.sqrt((this.radius*this.radius)-(this.y*this.y)); //Radius of current ring
+                        for(let j = 0; j < this.sides; j++){
+                            var radians = (j*(360/this.sides))*(Math.PI/180);
+                            this.vertices.push(Math.cos(radians)*r,this.y,Math.sin(radians)*r,  0.0,0.0,1.0);
+                        }
+                        this.y += 0.1; //y coordinate of current layer
+                    }
+                    //Top Point
+                    this.vertices.push(0.0,this.y,0.0,	1.0,1.0,1.0);
+                    //Add indices
+                    //Top and Bottom
+                    var top = (this.sides*this.layers)+1;
+                    for(let i = 0; i < this.sides; i++){
+                        this.indices.push(0.0,i+1,i+2);
+                        this.indices.push(top,top-(i+1),top-(i+2));
+                    }
+                    this.indices.push(0.0,this.sides,1.0);
+                    this.indices.push(top,top-this.sides,top-1);
+                    //Layers
+                    for(let i = 0; i < this.layers-1; i++){
+                        for(let j = 1; j < this.sides; j++){
+                            this.indices.push(j+(i*this.sides), j+((i+1)*this.sides), j+1+((i+1)*this.sides));
+                            this.indices.push(j+(i*this.sides), j+1+(i*this.sides), j+1+((i+1)*this.sides));
+                        }
+                        this.indices.push((i+1)*this.sides, (i+2)*this.sides, (i+1)*this.sides+1);
+                        this.indices.push((i+1)*this.sides, (i*this.sides)+1, (i+1)*this.sides+1);
+                    }
+                    //Intialize buffers
+                    this.initializeBuffers();
+                }
+                update(){
+                    //The ufo moves four different patterns of movement depending on the location
+                    if(this.location[0] >= 10 && this.location[2] >= 10){
+                        this.movementPattern = 0;
+                    }else if(this.location[0] <= -10 && this.location[2] >= 10){
+                        if(this.movementPattern == 0){
+                            this.movementPattern = 1;
+                        }else{
+                            this.movementPattern = 5;
+                        }
+                    }else if(this.location[0] >= 10 && this.location[2] <= -10){
+                        if(this.movementPattern == 1){
+                            this.movementPattern = 2;
+                        }else{
+                            this.movementPattern = 4;
+                        }
+                    }else if(this.location[0] <= -10 && this.location[2] <= -10){
+                        this.movementPattern = 3;
+                    }
+                    //Determine next location based on movement pattern
+                    //Reset velocity
+                    for(let i = 0; i < 3; i++){
+                        this.velocity[i] = 0;
+                    }
+                    //Change velocity
+                    switch(this.movementPattern){
+                        case 0:
+                            this.velocity[0] -= 0.05;
+                            break;
+                        case 1:
+                            this.velocity[0] += 0.05;
+                            this.velocity[2] -= 0.05;
+                            break;
+                        case 2:
+                            this.velocity[0] -= 0.05;
+                            break;
+                        case 3:
+                            this.velocity[0] += 0.05;
+                            break;
+                        case 4:
+                            this.velocity[0] -= 0.05;
+                            this.velocity[2] += 0.05;
+                            break;
+                        case 5:
+                            this.velocity[0] += 0.05;
+                            break;
+                    }
+                    //Move
+                    this.move();
+                }
+                render(program){
+                    super.render(program);
+                    //Move Spot light
+                    var spotLightLocation = gl.getUniformLocation(program,"spot_light_position");
+                    gl.uniform3fv(spotLightLocation, new Float32Array(this.location));
+                    //Move Ufo light
+                    var ufoLightLocation = gl.getUniformLocation(program,"ufo_light_position");
+                    var ufoLightPosition = [this.location[0],1.95,this.location[2]]
+                    gl.uniform3fv(ufoLightLocation, new Float32Array(ufoLightPosition));
+                }
+                handleCollision(object){/*
+                    if(object.prefab == camera){
+                        this.location[0] = 10;
+                        this.location[2] = 10;
+                        this.movementPattern = 0;
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = 0;
+                        }
+                        var positionLocation = gl.getUniformLocation(mymain.webgl.program,"spot_light_position");
+                        gl.uniform3fv(positionLocation, new Float32Array(this.location));
+                        console.log(this.movementPattern+" "+this.location);
+                    }*/
+                }
+            }
+            class sacredSafetyStone extends gameObject{
+                constructor(){
+                    super();
+                    this.collisionRadius = [0.08,0.08,0.08];
+                    //Add vertices
+                    this.vertices.push(
+                        //Bottom
+                        0.1,-0.05,0.1,      0.5,0,0.5,
+                        -0.1,-0.05,0.1,     0.5,0,0.5,
+                        -0.1,-0.05,-0.1,    0.5,0,0.5,
+                        0.1,-0.05,-0.1,     0.5,0,0.5,
+                        //Top
+                        0.08,0.02,0.08,      0.5,0,0.5,
+                        -0.08,0.02,0.08,     0.5,0,0.5,
+                        -0.08,0.02,-0.08,    0.5,0,0.5,
+                        0.08,0.02,-0.08,     0.5,0,0.5,
+                    );
+                    //Add indices
+                    this.indices.push(
+                        //Bottom
+                        0,1,3,  1,2,3,
+                        //Top
+                        4,5,7,   5,6,7,
+                    );
+                    //Add sides
+                    for(let i = 0; i < 3; i++){
+                        this.indices.push(i,i+4,i+5);
+                        this.indices.push(i,i+1,i+5);
+                    }
+                    this.indices.push(3,7,4);
+                    this.indices.push(3,0,4);
+                    //Initialize buffers
+                    this.initializeBuffers();
+                }
+            }
+            class camera extends object{
+                constructor(){
+                    super();
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.collisionRadius = [0.12,0.1,0.12];
+                }
+                update(){
+                    this.transform.doRotations(this.rotation);
+                    if(mymain.checkKey("W")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.forward[i] * 0.05;
+                        }
+                    }else if(mymain.checkKey("S")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.forward[i] * -0.05;
+                        }
+                    }else{
+                        this.velocity[0] = 0;
+                        this.velocity[2] = 0;
+                    }
+                    if(mymain.checkKey("D")){
+                        this.angularVelocity[1] = 0.05;
+                    }else if(mymain.checkKey("A")){
+                        this.angularVelocity[1] = -0.05;
+                    }else{
+                        this.angularVelocity[1] = 0;
+                    }
+                    if(mymain.checkKey("Q")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.right[i] * -0.05;
+                        }
+                    }else if(mymain.checkKey("E")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.right[i] * 0.05;
+                        }
+                    }
+                    this.move();
+                }
+                render(program){
+                    var worldLocation = gl.getUniformLocation(program,"worldLoc");
+                    gl.uniform3fv(worldLocation,this.location);
+                    var worldRotationLocation = gl.getUniformLocation(program,"worldRotation");
+                    gl.uniform3fv(worldRotationLocation,this.rotation);
+                }
+                handleCollision(object){
+                    if(object.prefab == sacredSafetyStone){
+                        mymain.endGame();
+                        return;
+                    }
+                    //Yes, this means the player could touch the UFO and the SACRED SAFETY STONE at the same time.
+                    //The SACRED SAFETY STONE takes priority and ends the game because it is sacred and can shield you from UFOs.
+                    if(object.prefab == ufo){
+                        this.location[0] = 0;
+                        this.location[2] = 0;
+                        this.rotation[1] = Math.PI;
+                    }
+                }
+            }
+            class moon extends gameObject{
+                constructor(){
+                    super();
+                    this.radius = 0.1;
+                    this.collisionRadius.push(this.radius, this.radius, this.radius);
+                    //Leaves are spheres which are really just multi-sided shapes of varying radii stacked on top of one another
+                    this.sides = 12; //Sides the shapes have
+                    this.layers = 19; //Number of rings(MUST ALWAYS BE AN ODD NUMBER)
+                    //Add vertices
+                    //Bottom Point
+                    this.y = this.location[1]-this.radius; //Set y coordinate of bottom
+                    this.vertices.push(0,this.y,0, 1.0,1.0,1.0);
+                    //Layers
+                    for(let i = 0; i < this.layers; i++){
+                        this.y += this.radius/((this.layers+1)/2); //y coordinate of current layer
+                        var r = Math.sqrt((this.radius*this.radius)-(this.y*this.y)); //Radius of current ring
+                        for(let j = 0; j < this.sides; j++){
+                            var radians = (j*(360/this.sides))*(Math.PI/180);
+                            this.vertices.push(Math.cos(radians)*r,this.y,Math.sin(radians)*r,  1.0,1.0,1.0);
+                        }
+                    }
+                    //Top Point
+                    this.y += this.radius/((this.layers+1)/2); //Set y coordinate of top
+                    this.vertices.push(0.0,this.y,0.0,	1.0,1.0,1.0);
+                    //Add indices
+                    //Top and Bottom
+                    var top = (this.sides*this.layers)+1;
+                    for(let i = 0; i < this.sides; i++){
+                        this.indices.push(0.0,i+1,i+2);
+                        this.indices.push(top,top-(i+1),top-(i+2));
+                    }
+                    this.indices.push(0.0,this.sides,1.0);
+                    this.indices.push(top,top-this.sides,top-1);
+                    //Layers
+                    for(let i = 0; i < this.layers-1; i++){
+                        for(let j = 1; j < this.sides; j++){
+                            this.indices.push(j+(i*this.sides), j+((i+1)*this.sides), j+1+((i+1)*this.sides));
+                            this.indices.push(j+(i*this.sides), j+1+(i*this.sides), j+1+((i+1)*this.sides));
+                        }
+                        this.indices.push((i+1)*this.sides, (i+2)*this.sides, (i+1)*this.sides+1);
+                        this.indices.push((i+1)*this.sides, (i*this.sides)+1, (i+1)*this.sides+1);
+                    }
+                    //Intialize buffers
+                    this.initializeBuffers();
+                } //O(sides*layers)
+            }
+            class main{
+                constructor(){
+                    this.webgl = new webgl;
+                    //Object arrays and counter
+                    this.visuals = [];
+                    this.triggers = [];
+                    this.solids = [];
+                    this.keys = []; //Keys that are pressed
+                    this.end = true; //If the game ended
+                    this.winScreen = document.getElementById("winScreen");
+                    //alert("There is a UFO in the sky! Quick, to the SACRED SAFETY STONE! It's got to be in this forest somewhere.")
+                }
+                restart(){
+                    //Stop the game
+                    this.end = true;
+                    //Delete all objects
+                    this.objectCounter = 0;
+                    for(var i in this.visuals){
+                        this.removeObject(this.visuals[i]);
+                    }
+                    for(var i in this.triggers){
+                        this.removeObject(this.triggers[i]);
+                    }
+                    for(var i in this.solids){
+                        this.removeObject(this.solids[i]);
+                    }
+                    this.cam = null;
+                    //Turn off all keys
+                    for(var i in this.keys){
+                        this.keys[i] = false;
+                    }
+                    //Place all objects back on the screen
+                    this.cam = this.addObject(2,camera,[0,0.1,0],[0,Math.PI,0],[1,1,1]);
+                    this.addObject(2,ground,[0,-0.001,0],[0,0,0],[1,1,1]);
+                    this.addLampPosts();
+                    //Randomly add the SACRED SAFETY STONE marked by special rock
+                    this.addObject(2,sacredSafetyStone,
+                        [(Math.random()*(20-0+1)+0)-10,0,(Math.random()*(20-0+1)+0)-10],
+                        [0,(Math.random()*(360-0+1)+0)*(Math.PI/180),0],[1,1,1]
+                    );
+                    this.addForest();
+                    this.addRocks();
+                    this.addObject(1,ufo,[10,2,10],[0,0,0],[1,1,1]);
+                    this.addObject(0,moon,[20,5,20],[0,0,0],[1.7,1,1.7]);
+                    //Get rid of the win screen
+                    this.winScreen.style = "display: none;";
+                    //Start the game
+                    this.end = false;
+                }
+                endGame(){
+                    mymain.end = true;
+                    this.winScreen.innerHTML = `You got to the SACRED SAFETY STONE! You are safe from the UFO!<br>Press enter to restart.`;
+                    this.winScreen.style = "display: block;";
+                }
+                addObject(type,prefab,location,rotation,scale){
+                    var temp = new prefab; //Create Object
+                    //Set properties
+                    var id = "ID"+this.objectCounter
+                    temp.id = id;
+                    this.objectCounter++;
+                    temp.prefab = prefab;
+                    for(let i = 0; i < 3; i++){
+                        temp.location[i] = location[i];
+                        temp.rotation[i] = rotation[i];
+                        temp.scale[i] = scale[i];
+                        temp.collisionRadius[i] *= scale[i];
+                    }
+                    //Add to array
+                    switch(type){
+                        case 0:
+                            this.visuals[id] = temp;
+                            break;
+                        case 1:
+                            this.triggers[id] = temp;
+                            break;
+                        case 2:
+                            this.solids[id] = temp;
+                            break;
+                        default:
+                            console.error("Error: "+type+" is not a valid collision type");
+                            break;
+                    }
+                    return temp;
+                }
+                removeObject(id){
+                    if(id in this.visuals){
+                        delete this.visuals[id];
+                    }
+                    if(id in this.triggers){
+                        delete this.triggers[id];
+                    }
+                    if(id in this.solids){
+                        delete this.solids[id];
+                    }
+                }
+                addLampPosts(){
+                    var lightLocations = gl.getUniformLocation(this.webgl.program,"light_positions");
+                    this.lightHeight = 0.21;
+                    var lights = [
+                        1,this.lightHeight,2,
+                        8,this.lightHeight,9,
+                        -1,this.lightHeight,5,
+                        -4,this.lightHeight,6,
+                        -9,this.lightHeight,7
+                    ];
+                    gl.uniform3fv(lightLocations, new Float32Array(lights));
+                    for(let i = 0; i < lights.length; i+=3){
+                        this.addObject(2,lampPost,[lights[i],0,lights[i+2]],[0,0,0],[1,1,1]);
+                    }
+                }
+                addForest(){
+                    //Create trees
+                    for(let i = 0; i < 400; i++){
+                        //Variables to store the x and z coordinates
+                        var x = 0;
+                        var z = 0;
+                        //Add tree
+                        var newTree = this.addObject(2,tree,[0,0,0],[0,0,0],[1,1,1]);
+                        var noCollision = true; //Assume that the tree does not spawn on top of an object
+                        //Generate x and z coordinates(y will always be 0)
+                        var max = 20;
+                        x = (Math.random()*(max-0+1)+0)-(max/2);
+                        z = (Math.random()*(max-0+1)+0)-(max/2);
+                        newTree.location[0] = x;
+                        newTree.location[2] = z;
+                        //Check to make sure it didn't spawn on the player, SACRED SAFETY STONE, or a lampost
+                        if(this.checkCollision(this.cam.location, this.cam, newTree.location, newTree)){
+                            noCollision = false;
+                        }
+                        for(let i = 2; i < 8; i++){
+                            var id = "ID"+i;
+                            if(this.checkCollision(this.solids[id].location, this.solids[id], newTree.location, newTree)){
+                                noCollision = false;
+                            }
+                        }
+                        //If there was a collision, move the tree
+                        if(!noCollision){
+                            newTree.location[0] += 2;
+                            newTree.location[2] += 2;
+                        }
+                        //Add leaves
+                        this.addObject(2,leaves,[newTree.location[0],0.3,newTree.location[2]],[0,0,0],[1.7,1,1.7]);
+                    }
+                }
+                addRocks(){
+                    //Create rocks
+                    for(let i = 0; i < 100; i++){
+                        //Variables to store the location, rotation, and scale
+                        var x = 0;
+                        var y = 0;
+                        var z = 0;
+                        var rx = (Math.random()*(360-0+1)+0)*(Math.PI/180);
+                        var ry = (Math.random()*(360-0+1)+0)*(Math.PI/180);
+                        var rz = (Math.random()*(360-0+1)+0)*(Math.PI/180);
+                        var sx = Math.floor(Math.random()*(2-1+1)+1);
+                        var sy = Math.floor(Math.random()*(2-1+1)+1);
+                        var sz = Math.floor(Math.random()*(2-1+1)+1);
+                        //Add rock
+                        var newRock = this.addObject(2,rock,[5,0,5],[rx,ry,rz],[sx,sy,sz]);
+                        var noCollision = true; //Assume that the rock does not spawn on top of an object
+                        //Generate x and z coordinates(y will always be 0)
+                        var max = 20;
+                        x = (Math.random()*(max-0+1)+0)-(max/2);
+                        z = (Math.random()*(max-0+1)+0)-(max/2);
+                        newRock.location[0] = x;
+                        newRock.location[2] = z;
+                        //Check to make sure it didn't spawn on the player, SACRED SAFETY STONE zone, or a lampost
+                        if(this.checkCollision(this.cam.location, this.cam, newRock.location, newRock)){
+                            noCollision = false;
+                        }
+                        for(let i = 2; i < 8; i++){
+                            var id = "ID"+i;
+                            if(this.checkCollision(this.solids[id].location, this.solids[id], newRock.location, newRock)){
+                                noCollision = false;
+                            }
+                        }
+                        //If there was a collision, move the rock
+                        if(!noCollision){
+                            newRock.location[0] += sx;
+                            newRock.location[2] += sz;
+                        }
+                    }
+                }
+                updateAll(){
+                    for(var i in this.visuals){
+                        this.visuals[i].update();
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].update();
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].update();
+                    }
+                }
+                renderAll(){
+                    gl.clearColor(0,0,0,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    for(var i in this.visuals){
+                        this.visuals[i].render(this.webgl.program);
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].render(this.webgl.program);
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].render(this.webgl.program);
+                    }
+                }
+                checkCollision(object1Location,object1,object2Location,object2){
+                    //Edge Case: Since there is no vertical motion, no need to worry about ground collisions
+                    if(object1.prefab == ground || object2.prefab == ground){
+                        return;
+                    }
+                    //If x, y, and z distances are less than their collision radii put together, return true
+                    var xRange = object1.collisionRadius[0] + object2.collisionRadius[0];
+                    var yRange = object1.collisionRadius[1] + object2.collisionRadius[1];
+                    var zRange = object1.collisionRadius[2] + object2.collisionRadius[2];
+                    //Edge case: If one object is the camera, multiple its z by negative 1
+                    var z1 = object1Location[2];
+                    var z2 = object2Location[2];
+                    if(object1.prefab == camera){
+                        z1 *= -1;
+                    }
+                    if(object2.prefab == camera){
+                        z2 *= -1;
+                    }
+                    var xDistance = Math.abs(object1Location[0]-object2Location[0]);
+                    var yDistance = Math.abs(object1Location[1]-object2Location[1]);
+                    var zDistance = Math.abs(z1-z2);
+                    if(xDistance < xRange && yDistance < yRange && zDistance < zRange){
+                        return true;
+                    }
+                    return false;
+                }
+
+                keyDown(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = true;
+                }
+                keyUp(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = false;
+                }
+                checkKey(key){
+                    return this.keys[key];
+                }
+
+                static keyD(event){
+                    mymain.keyDown(event);
+                }
+                static keyU(event){
+                    mymain.keyUp(event);
+                }
+                static mainLoop(){
+                    if(mymain.checkKey(String.fromCharCode(13)) == true){
+                        mymain.restart();
+                    }
+                    if(!mymain.end){
+                        mymain.updateAll();
+                        mymain.renderAll();
+                    }
+                    requestAnimationFrame(main.mainLoop);
+                }
+            }
+        </script>
+        <link rel="stylesheet" href="../styles.css">
+    </head>
+    <body>
+        <div class="box">
+            <h1 class="title">The Spooky Forest</h1>
+        </div>
+        <div class="flexBox">
+            <div id="gameBox" class="greenGameBox">
+                <div class="container" id="canvasContainer">
+                    <canvas id="mycanvas" width="600" height="600">
+                        YOUR BROWSER DOES NOT SUPPORT CANVAS
+                    </canvas>
+                    <div class="popupBox" id="winScreen">
+                        There is a UFO in the sky! Quick, to the SACRED SAFETY STONE! It's got to be in this forest somewhere.<br>Press enter to start.
+                    </div>
+                </div>
+            </div>
+            <div id="story" class="story">
+                <h3 class="text">
+                    Welcome to the Spooky Forest!(Wooooooo.....)<br>
+                    <br>
+                    In this game, the ancient prophesy has come true. On a dark night, the aliens returned and began are abducting people left and right. Luckily, your ancestors knew this would happen and thus create the SACRED SAFETY STONE, a stone that protects all those around it from ufo attacks.<br>
+                    You know it's in nearby forest somewhere, you just have to find it. You'll recognize it by it's unique purple color. If you find it, you will be safe.<br>However, the aliens know you're the forest somewhere, and are looking for you. You must avoid being abducted at all cost.<br>
+                    <br>
+                    How to play:<br>
+                    Use W and S to move forwards and backwards.<br>
+                    Use A and D to rotate left and right.<br>
+                    Use Q and E to move left and right.<br>
+                    Navigate through the forest and find the sacred safety stone. Once you touch it, you win the game.<br>
+                    If you the ufo's spotlight touches you, you die and the game resets.<br>
+                    If you at any time want to restart the game, press enter.<br>
+                    The difference between resetting and restarting is that reseting only restarts the player.<br>
+                    Restarting restarts the whole game.<br>
+                    GLHF!<br>
+                    <br>
+                    Apologies for the weird collision physics. I was still learning how perspective and camera space worked when I made this.
+                </h3>
+            </div>
+            <script>
+                var canvas = document.getElementById("mycanvas");
+                //Adjust element sizes based on the canvas
+                var canvasContainer = document.getElementById("canvasContainer");
+                canvasContainer.style.width = canvas.width;
+                canvasContainer.style.height = canvas.height;
+                var story = document.getElementById("story");
+                var gameBox = document.getElementById("gameBox");
+                story.style.height = gameBox.clientHeight+"px";
+                //Set up the game
+                var gl = canvas.getContext("webgl");
+                var mymain = new main;
+                //Add event key listeners and start the game
+                window.onkeydown = main.keyD;
+                window.onkeyup = main.keyU;
+                requestAnimationFrame(main.mainLoop);
+            </script>
+            <div>
+                <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
+                <button class="norm" onclick="window.location.href='../index.html'">Watch Playthrough</button>
+            </div>
+        </div>
+    </body>
+</html>

@@ -8,6 +8,8 @@ div.box{
     height: max-content;
     background-color: black;
     margin: 0;
+    margin-top: 0;
+    margin-bottom: 10px;
 }
 div.flexBox{
     display: flex;
@@ -65,7 +67,7 @@ div.img{
     flex-direction: column;
     text-align: center;
 }
-img.thumbNail{
+img.thumbNail{ /*Limitation: No images bigger than 280x150*/
     margin-left: auto;
     margin-right: auto;
     display: block;    
@@ -107,6 +109,8 @@ canvas.default{
 h1.title{
     font-size: 50px; 
     color: lime;
+    margin-top: 0;
+    margin-bottom:0
 }
 div.story{
     border: 3px solid lime;
@@ -117,9 +121,10 @@ div.story{
     font-size: 13px;
     width: 600px;
     height: max-content;
-    min-height: 635px;
+    /*min-height: 635px;*/
     text-align: left;
     padding-left: 5px;
+    overflow: auto;
 }
 div.greenBox{
     border: 3px solid lime;
@@ -131,13 +136,80 @@ div.greenBox{
     padding-left: 5px;
 }
 div.gameBox{
-    text-align: center; 
-    background-color: white; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 0;
     border: 3px solid lime; 
+    background-color: white;
+    width: 600px; 
+    margin-top: 5px; 
+    margin-bottom: 5px; 
+    margin-left: 5px; 
+    margin-right: 5px; 
+}
+div.clouds{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 0;
+    border: 3px solid lime; 
+    background-color: white;
     width: 650px; 
     margin-top: 5px; 
     margin-bottom: 5px; 
     margin-left: 5px; 
     margin-right: 5px; 
+}
+div.greenGameBox{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 0;
+    border: 3px solid lime;
+    width: 600px; 
+    margin-top: 5px; 
+    margin-bottom: 5px; 
+    margin-left: 5px; 
+    margin-right: 5px; 
+}
+p.score{
+    float: left;
+    margin-left: 25px;
+    align-self: flex-start;
+}
+p.blackScore{
+    margin-left: 25px;
+    color: lime;
+    align-self: flex-start;
+}
+div.container{
+    position: relative;
+    margin: 0px;
+    padding: 0px;
+}
+div.popMessage{
+    position: absolute;
+    top: 50%;
+    left: 50%;
     padding: 5px;
+    color: lime;
+    font-size: 30px;
+}
+div.popupBox{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    padding: 5px;
+    margin: 5px;
+    font-size: 30px;
+    border: 3px solid lime;
+    color: lime;
+    width: 96%;
+    background-color: black;
+    top: 30%;
+    left: 0%;
 }
