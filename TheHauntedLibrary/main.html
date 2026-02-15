@@ -1573,8 +1573,8 @@
                         mymain.removeObject(object.id);
                     }
                     if(object.prefab == exit){
-                        alert("You escaped the spirits of the library! You win!");
                         mymain.end = true;
+                        mymain.endGame();
                     }
                 }
             }
@@ -1582,28 +1582,37 @@
                 constructor(){
                     this.webgl = new webgl;
                     //Object arrays and counter
-                    this.visuals = [];
-                    this.triggers = [];
-                    this.solids = [];
+                    this.visuals = {};
+                    this.triggers = {};
+                    this.solids = {};
                     this.objectCounter = 0;
                     this.keys = []; //Keys that are pressed
+                    this.frameKeys = []; //Frames when the keys were pressed
                     this.end = true; //If the game ended
                     this.start = false; //If the game has started
+                    this.win = false; //The player did not win
                     this.winScreen = document.getElementById("winScreen");
+                    this.frame = 0; // Current frame
                     this.startGame();
                 }
+                endGame(){
+                    this.end = true;
+                    this.win = true;
+                    this.winScreen.innerHTML = `You escaped the spirts! You win!<br>Press enter to restart.`;
+                    this.winScreen.style = "display:block";
+                }
                 startGame(){
-                    console.log("TEWT");
-                    //This does not work, it needs a timer of ifKeyIsJustPressed
-                    if(!this.start && this.end){
+                    if(this.win || (!this.start && this.end)){ //Intial game setup
                         this.setup();
+                        this.clearScreen();
                         this.winScreen.innerHTML = `You are studying for you finals in the library when you remember something, "The spirits of the library awaken at midnight." You look at the clock. It's 11:59. It strikes 12. The spirits. Best get out of here quickly.<br>Press enter to start.`;
                         this.winScreen.style = "display: block";
                         this.start = true;
-                    }else if(this.start && this.end){
+                        this.end = true;
+                    }else if(this.start && this.end){ //Player starts the game
                         this.end = false;
                         this.winScreen.style = "display: none";
-                    }else if(this.start && !this.end){
+                    }else if(this.start && !this.end){ //Player restarts the game
                         this.end = true;
                         this.setup();
                         this.end = false;
@@ -1626,14 +1635,14 @@
                     this.end = true;
                     //Delete all objects
                     this.removeAllObjects();
-                    console.log(this.visuals.length+" "+this.triggers.length+" "+this.solids.length);
-                    this.renderAll();
+                    this.clearScreen();
                     //Add all objects to the screen
                     this.addLights();
                     this.cam = this.addObject(2,camera,[-54,1,54],[0,-Math.PI/2,0],[1,1,1]);
                     this.addObject(0,ground,[0,0,0],[0,0,0],[1,1,1]);
-                    this.addObject(0,ceiling,[0,0,0],[0,0,0],[1,1,1]);
+                    this.addObject(0,ceiling,[0,2,0],[0,0,0],[1,1,1]);
                     this.generateMaze();
+                    this.win = false;
                 }
                 addObject(type,prefab,location,rotation,scale){
                     var temp = new prefab; //Create Object
@@ -1751,7 +1760,7 @@
                             }else if(walls[i][j] == 3){ //If it's the exit, pick the exit
                                 prefab = exit;
                                 location[0] -= 2;
-                                continue;
+                                //continue;
                             }else if(walls[i][j] == 4){
                                 prefab = cultist;
                                 location[1] = 1;
@@ -1770,6 +1779,7 @@
                     }
                 }
                 updateAll(){
+                    this.frame += 1;
                     for(var i in this.visuals){
                         this.visuals[i].update();
                     }
@@ -1780,9 +1790,12 @@
                         this.solids[i].update();
                     }
                 }
-                renderAll(){
+                clearScreen(){
                     gl.clearColor(0,0,0,1);
                     gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+                renderAll(){
+                    this.clearScreen();
                     for(var i in this.visuals){
                         this.visuals[i].render(this.webgl.program);
                     }
@@ -1809,13 +1822,22 @@
                 }
 
                 keyDown(event){
-                    this.keys[String.fromCharCode(event.keyCode)] = true;
+                    //Get input
+                    var input = String.fromCharCode(event.keyCode);
+                    //If that key was just pressed this frame, mark its frame
+                    if(this.keys[input] == undefined || this.keys[input] == false){
+                        this.frameKeys[input] = this.frame;
+                    }
+                    this.keys[input] = true;
                 }
                 keyUp(event){
                     this.keys[String.fromCharCode(event.keyCode)] = false;
                 }
                 checkKey(key){
                     return this.keys[key];
+                }
+                checkKeyJustPressed(key){
+                    return (this.frameKeys[key] == this.frame);
                 }
                 mouseDown(event){
                     this.cam.shoot();
@@ -1831,12 +1853,14 @@
                     mymain.mouseDown(event);
                 }
                 static mainLoop(){
-                    if(mymain.checkKey(String.fromCharCode(13)) == true){
+                    if(mymain.checkKeyJustPressed(String.fromCharCode(13)) == true){
                         mymain.startGame();
                     }
-                    if(!mymain.end){
+                    if(!mymain.end && mymain.start){
                         mymain.updateAll();
                         mymain.renderAll();
+                    }else if(!mymain.win){
+                        mymain.clearScreen();
                     }
                     requestAnimationFrame(main.mainLoop);
                 }
@@ -1869,6 +1893,40 @@
                 window.addEventListener("click",main.mouseD);
                 requestAnimationFrame(main.mainLoop);
             </script>
+            <div class="story">
+                <h3 class="text">
+                    Welcome to The Haunted Library!<br>
+                    <br>
+                    In this game, you play as a college student studying in the library during finals week.<br>
+                    However, you neglected to remember that when the clock strikes midnight, the spirits of the library awaken!<br>
+                    Now, you must escape the library, and quickly. The spirits are restless and will hurt you if you let them.<br>
+                    Luckily, you remembered to bring your magic wand when you left your dorm. So if the spirits do get too close, you can shoot them with an Arcane Missile!<br>
+                    Find the exit and hurry! The spirits are coming!<br>
+                    <br>
+                    How to play:<br>
+                    Use W and S to move forwards and backwards.<br>
+                    Use A and D to rotate the camera left and right.<br>
+                    Use Q and E to move left and right.<br>
+                    Left click to shoot and Arcane Missle.<br>
+                    Press Enter to restart the game at any time.<br>
+                    Get to the exit before the sprits get you.<br>
+                    If the spirits get you, you die and the game resets.<br>
+                    <br>
+                    The Spirits:<br>
+                    Wizard Ghosts shoot magic fireballs at you. If they hit you, you will die.<br>
+                    Plasma Ghosts are ghosts made of slime and plasma. If they touch you, you will die.<br>
+                    However, they have a tendency to get stuck between walls and are very slow.<br>
+                    Bats are not spirits. However, they will still bite you and you can die from their bites.<br>
+                    They are small, fast, and very sporadic with their movements. Be very careful if see one.<br>
+                    <br>
+                    Credits:<br>
+                    Credits to "The Might and Magic Wikia" for the following textures in this game:<br>
+                    Wizard Ghost: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Cleric_of_Moo">https://mightandmagic.fandom.com/wiki/Cleric_of_Moo</a><br>
+                    Plasma Ghost: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Plasmoid">https://mightandmagic.fandom.com/wiki/Plasmoid</a><br>
+                    Bat: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Vampire_bat_(MM3)">https://mightandmagic.fandom.com/wiki/Vampire_bat_(MM3)</a><br>
+                    Credits to <a class="credit" target="_blank" href="https://itch.io/profile/btowle">Dr. Bradford Towle</a> for providing the code that converts the images into texture data.<br>
+                </h3>
+            </div>
         </div>
     </body>
 </html>
