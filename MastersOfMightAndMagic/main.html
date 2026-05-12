@@ -509,48 +509,50 @@
         <div class="box">
             <h1 class="title">Masters of Might and Magic</h1>
         </div>
-        <div class="flexBox">
-            <canvas width="768" height="576" id="mycanvas" class="default" style="background-color:limegreen"></canvas>
-            <div class="story">
-                <h3 class="text">
-                    Welcome to Masters of Might and Magic!!<br><br>
-                    In this game, you play a young warrior who seeks to become a Master of Might and Magic!<br>
-                    However, that is no simple task, as that requires the you to kill all the monsters that live in the Green Grass Hills.<br>
-                    Knowing this and ready to face the danger that awaits you, you pick up your hammer and get ready to slay everything you find.<br>
-                    Only then will you become a Master of Might and Magic!<br>
-                    <br>
-                    How to play:<br>
-                    To play the game, use WASD or the arrow keys to control the hero. The hero and the monsters each take turns moving.<br>
-                    To attack a monster, attempt to move on top of it. This will count as an attack, and the monster will lose an amount of health depending on its defense.<br>
-                    There are six monsters total; two BubbleMen, two MooseRats, and two CobraFiends.<br>
-                    BubbleMen are easy. They have low health, low defense, and low attack.<br>
-                    CobraFiends are more annoying than anything. They have low attack, but high health and defense.<br>
-                    MooseRats are the hardest. They have high health, defense, AND attack.<br>
-                    There are 2 health potions on the field which will restore the hero back up to max HP.<br>
-                    To win the game, you must kill all six monsters.<br>
-                    If the hero is killed, you lose.<br>
-                    To restart the game at any time, simply click anywhere inside the game.<br>
-                    GLHF!<br>
-                    <br>
-                    Image Credits:<br>
-                    Credits to "The Might and Magic Wikia" for all the images in this game. Links to individual image sources within the wiki are below.<br>
-                    Hero: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Mad_dwarf_(MM3)">https://mightandmagic.fandom.com/wiki/Mad_dwarf_(MM3)</a><br>
-                    BubbleMan: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Bubble_man">https://mightandmagic.fandom.com/wiki/Bubble_man</a><br>
-                    MooseRat: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Moose_rat">https://mightandmagic.fandom.com/wiki/Moose_rat</a><br>
-                    CobraFiend: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Cobra_fiend">https://mightandmagic.fandom.com/wiki/Cobra_fiend</a><br>
-                </h3>
+        <div class="verticalBox">
+            <div class="flexBox">
+                <canvas width="768" height="576" id="mycanvas" class="default" style="background-color:limegreen"></canvas>
+                <div class="story">
+                    <h3 class="text">
+                        Welcome to Masters of Might and Magic!!<br><br>
+                        In this game, you play a young warrior who seeks to become a Master of Might and Magic!<br>
+                        However, that is no simple task, as that requires the you to kill all the monsters that live in the Green Grass Hills.<br>
+                        Knowing this and ready to face the danger that awaits you, you pick up your hammer and get ready to slay everything you find.<br>
+                        Only then will you become a Master of Might and Magic!<br>
+                        <br>
+                        How to play:<br>
+                        To play the game, use WASD or the arrow keys to control the hero. The hero and the monsters each take turns moving.<br>
+                        To attack a monster, attempt to move on top of it. This will count as an attack, and the monster will lose an amount of health depending on its defense.<br>
+                        There are six monsters total; two BubbleMen, two MooseRats, and two CobraFiends.<br>
+                        BubbleMen are easy. They have low health, low defense, and low attack.<br>
+                        CobraFiends are more annoying than anything. They have low attack, but high health and defense.<br>
+                        MooseRats are the hardest. They have high health, defense, AND attack.<br>
+                        There are 2 health potions on the field which will restore the hero back up to max HP.<br>
+                        To win the game, you must kill all six monsters.<br>
+                        If the hero is killed, you lose.<br>
+                        To restart the game at any time, simply click anywhere inside the game.<br>
+                        GLHF!<br>
+                        <br>
+                        Image Credits:<br>
+                        Credits to "The Might and Magic Wikia" for all the images in this game. Links to individual image sources within the wiki are below.<br>
+                        Hero: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Mad_dwarf_(MM3)">https://mightandmagic.fandom.com/wiki/Mad_dwarf_(MM3)</a><br>
+                        BubbleMan: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Bubble_man">https://mightandmagic.fandom.com/wiki/Bubble_man</a><br>
+                        MooseRat: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Moose_rat">https://mightandmagic.fandom.com/wiki/Moose_rat</a><br>
+                        CobraFiend: <a class="credit" target="_blank" href="https://mightandmagic.fandom.com/wiki/Cobra_fiend">https://mightandmagic.fandom.com/wiki/Cobra_fiend</a><br>
+                    </h3>
+                </div>
+                <script>
+                    var canvas = document.getElementById('mycanvas');
+                    var ctx = canvas.getContext('2d');
+                    var mymain = new main;
+
+                    canvas.addEventListener("click",main.click);
+                </script>
             </div>
             <div>
                 <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-                <button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>
+                <!--<button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>-->
             </div>
-            <script>
-                var canvas = document.getElementById('mycanvas');
-                var ctx = canvas.getContext('2d');
-                var mymain = new main;
-
-                canvas.addEventListener("click",main.click);
-            </script>
         </div>
     </body>
 </html>

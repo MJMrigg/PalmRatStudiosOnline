@@ -1194,58 +1194,60 @@
         <div class="box">
             <h1 class="title">The Spooky Forest</h1>
         </div>
-        <div class="flexBox">
-            <div id="gameBox" class="greenGameBox">
-                <div class="container" id="canvasContainer">
-                    <canvas id="mycanvas" width="600" height="600">
-                        YOUR BROWSER DOES NOT SUPPORT CANVAS
-                    </canvas>
-                    <div class="popupBox" id="winScreen">
-                        There is a UFO in the sky! Quick, to the SACRED SAFETY STONE! It's got to be in this forest somewhere.<br>Press enter to start.
+        <div class="verticalBox">
+            <div class="flexBox">
+                <div id="gameBox" class="greenGameBox">
+                    <div class="container" id="canvasContainer">
+                        <canvas id="mycanvas" width="600" height="600">
+                            YOUR BROWSER DOES NOT SUPPORT CANVAS
+                        </canvas>
+                        <div class="popupBox" id="winScreen">
+                            There is a UFO in the sky! Quick, to the SACRED SAFETY STONE! It's got to be in this forest somewhere.<br>Press enter to start.
+                        </div>
                     </div>
                 </div>
+                <div id="story" class="story">
+                    <h3 class="text">
+                        Welcome to the Spooky Forest!(Wooooooo.....)<br>
+                        <br>
+                        In this game, the ancient prophesy has come true. On a dark night, the aliens returned and began are abducting people left and right. Luckily, your ancestors knew this would happen and thus create the SACRED SAFETY STONE, a stone that protects all those around it from ufo attacks.<br>
+                        You know it's in nearby forest somewhere, you just have to find it. You'll recognize it by it's unique purple color. If you find it, you will be safe.<br>However, the aliens know you're the forest somewhere, and are looking for you. You must avoid being abducted at all cost.<br>
+                        <br>
+                        How to play:<br>
+                        Use W and S to move forwards and backwards.<br>
+                        Use A and D to rotate left and right.<br>
+                        Use Q and E to move left and right.<br>
+                        Navigate through the forest and find the sacred safety stone. Once you touch it, you win the game.<br>
+                        If you the ufo's spotlight touches you, you die and the game resets.<br>
+                        If you at any time want to restart the game, press enter.<br>
+                        The difference between resetting and restarting is that reseting only restarts the player.<br>
+                        Restarting restarts the whole game.<br>
+                        GLHF!<br>
+                        <br>
+                        Apologies for the weird collision physics. I was still learning how perspective and camera space worked when I made this.
+                    </h3>
+                </div>
+                <script>
+                    var canvas = document.getElementById("mycanvas");
+                    //Adjust element sizes based on the canvas
+                    var canvasContainer = document.getElementById("canvasContainer");
+                    canvasContainer.style.width = canvas.width;
+                    canvasContainer.style.height = canvas.height;
+                    var story = document.getElementById("story");
+                    var gameBox = document.getElementById("gameBox");
+                    story.style.height = gameBox.clientHeight+"px";
+                    //Set up the game
+                    var gl = canvas.getContext("webgl");
+                    var mymain = new main;
+                    //Add event key listeners and start the game
+                    window.onkeydown = main.keyD;
+                    window.onkeyup = main.keyU;
+                    requestAnimationFrame(main.mainLoop);
+                </script>
             </div>
-            <div id="story" class="story">
-                <h3 class="text">
-                    Welcome to the Spooky Forest!(Wooooooo.....)<br>
-                    <br>
-                    In this game, the ancient prophesy has come true. On a dark night, the aliens returned and began are abducting people left and right. Luckily, your ancestors knew this would happen and thus create the SACRED SAFETY STONE, a stone that protects all those around it from ufo attacks.<br>
-                    You know it's in nearby forest somewhere, you just have to find it. You'll recognize it by it's unique purple color. If you find it, you will be safe.<br>However, the aliens know you're the forest somewhere, and are looking for you. You must avoid being abducted at all cost.<br>
-                    <br>
-                    How to play:<br>
-                    Use W and S to move forwards and backwards.<br>
-                    Use A and D to rotate left and right.<br>
-                    Use Q and E to move left and right.<br>
-                    Navigate through the forest and find the sacred safety stone. Once you touch it, you win the game.<br>
-                    If you the ufo's spotlight touches you, you die and the game resets.<br>
-                    If you at any time want to restart the game, press enter.<br>
-                    The difference between resetting and restarting is that reseting only restarts the player.<br>
-                    Restarting restarts the whole game.<br>
-                    GLHF!<br>
-                    <br>
-                    Apologies for the weird collision physics. I was still learning how perspective and camera space worked when I made this.
-                </h3>
-            </div>
-            <script>
-                var canvas = document.getElementById("mycanvas");
-                //Adjust element sizes based on the canvas
-                var canvasContainer = document.getElementById("canvasContainer");
-                canvasContainer.style.width = canvas.width;
-                canvasContainer.style.height = canvas.height;
-                var story = document.getElementById("story");
-                var gameBox = document.getElementById("gameBox");
-                story.style.height = gameBox.clientHeight+"px";
-                //Set up the game
-                var gl = canvas.getContext("webgl");
-                var mymain = new main;
-                //Add event key listeners and start the game
-                window.onkeydown = main.keyD;
-                window.onkeyup = main.keyU;
-                requestAnimationFrame(main.mainLoop);
-            </script>
             <div>
                 <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-                <button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>
+                <!--<button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>-->
             </div>
         </div>
     </body>

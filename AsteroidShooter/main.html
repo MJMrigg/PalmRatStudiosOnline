@@ -811,58 +811,60 @@
         <div class="box">
             <h1 class="title">Asteroid Shooter</h1>
         </div>
-        <div class="flexBox">
-            <div id="gameBox" class="greenGameBox">
-                <p class="blackScore" id="score">Error</p>
-                <div class="container" id="canvasContainer">
-                    <canvas id="mycanvas" width="600" height="600">
-                        YOUR BROWSER DOES NOT SUPPORT CANVAS
-                    </canvas>
-                    <div class="popMessage" id="winScreen" style="top: 45%; left: 20%;">You win! Press enter to restart.</div>
+        <div class="verticalBox">
+            <div class="flexBox">
+                <div id="gameBox" class="greenGameBox">
+                    <p class="blackScore" id="score">Error</p>
+                    <div class="container" id="canvasContainer">
+                        <canvas id="mycanvas" width="600" height="600">
+                            YOUR BROWSER DOES NOT SUPPORT CANVAS
+                        </canvas>
+                        <div class="popMessage" id="winScreen" style="top: 45%; left: 20%;">You win! Press enter to restart.</div>
+                    </div>
                 </div>
+                <div id="story" class="story">
+                    <h3 class="text">
+                        Welcome to Asteriod Shooter!<br>
+                        <br>
+                        In this game, you play as a spaceship pilot, tasked with shooting a whole field of asteriods so that the scavengers can come and fetch the bits.
+                        However, there are a lot of them. As such, you built in the latest gadget in radar technology, the Detectotron 9000, perfect for scanning entire asteriod fields!<br>
+                        With this installed in your spaceship, you have it update your viewport every time you blow up and asteriod.<br>
+                        With that installed, you head out to the asteroid field, ready to blow stuff up!<br>
+                        <br>
+                        How to play:<br>
+                        Use W and S to move forward and backward.<br>
+                        Use A and D to rotate your ship to the left and right.<br>
+                        Use Q and E or Z and X to move your ship up or down.<br>
+                        Left click to shoot a bullet.<br>
+                        Shoot bullets at asteroids to damage them.<br>
+                        Asteroids have 3 health and bullets do 1 damage, so you'll have to shoot it 3 times.<br>
+                        There are 200 asteroids. Once you destroy all of them, you win!<br>
+                        To restart the game at any time, press enter.<br>
+                        There is also a cheat code involving another key on your keyboard. Try to find it!<br>
+                        GLHF!<br>
+                    </h3>
+                </div>
+                <script>
+                    var canvas = document.getElementById("mycanvas");
+                    //Adjust element sizes based on the canvase
+                    var canvasContainer = document.getElementById("canvasContainer");
+                    canvasContainer.style = "width: "+canvas.width+"px; height: "+canvas.height+"px;";
+                    var story = document.getElementById("story");
+                    var gameBox = document.getElementById("gameBox");
+                    story.style.height = gameBox.clientHeight+"px";
+                    //Set up the game
+                    var gl = canvas.getContext("webgl");
+                    var mymain = new main;
+                    //Add event key listeners and start the game
+                    window.onkeydown = main.keyD;
+                    window.onkeyup = main.keyU;
+                    canvas.addEventListener("click",main.mouseD);
+                    requestAnimationFrame(main.mainLoop);
+                </script>
             </div>
-            <div id="story" class="story">
-                <h3 class="text">
-                    Welcome to Asteriod Shooter!<br>
-                    <br>
-                    In this game, you play as a spaceship pilot, tasked with shooting a whole field of asteriods so that the scavengers can come and fetch the bits.
-                    However, there are a lot of them. As such, you built in the latest gadget in radar technology, the Detectotron 9000, perfect for scanning entire asteriod fields!<br>
-                    With this installed in your spaceship, you have it update your viewport every time you blow up and asteriod.<br>
-                    With that installed, you head out to the asteroid field, ready to blow stuff up!<br>
-                    <br>
-                    How to play:<br>
-                    Use W and S to move forward and backward.<br>
-                    Use A and D to rotate your ship to the left and right.<br>
-                    Use Q and E or Z and X to move your ship up or down.<br>
-                    Left click to shoot a bullet.<br>
-                    Shoot bullets at asteroids to damage them.<br>
-                    Asteroids have 3 health and bullets do 1 damage, so you'll have to shoot it 3 times.<br>
-                    There are 200 asteroids. Once you destroy all of them, you win!<br>
-                    To restart the game at any time, press enter.<br>
-                    There is also a cheat code involving another key on your keyboard. Try to find it!<br>
-                    GLHF!<br>
-                </h3>
-            </div>
-            <script>
-                var canvas = document.getElementById("mycanvas");
-                //Adjust element sizes based on the canvase
-                var canvasContainer = document.getElementById("canvasContainer");
-                canvasContainer.style = "width: "+canvas.width+"px; height: "+canvas.height+"px;";
-                var story = document.getElementById("story");
-                var gameBox = document.getElementById("gameBox");
-                story.style.height = gameBox.clientHeight+"px";
-                //Set up the game
-                var gl = canvas.getContext("webgl");
-                var mymain = new main;
-                //Add event key listeners and start the game
-                window.onkeydown = main.keyD;
-                window.onkeyup = main.keyU;
-                canvas.addEventListener("click",main.mouseD);
-                requestAnimationFrame(main.mainLoop);
-            </script>
             <div>
                 <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-                <button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>
+                <!--<button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>-->
             </div>
         </div>
     </body>

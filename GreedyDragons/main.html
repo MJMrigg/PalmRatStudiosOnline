@@ -1015,46 +1015,48 @@
         <div class="box">
             <h1 class="title">Greedy Dragons</h1>
         </div>
-        <div class="flexBox">
-            <div class="clouds">
-                <p id="score" class="score">Error</p>
-                <canvas id="mycanvas" width="600" height="600">
-                    YOUR BROWSER DOES NOT SUPPORT CANVAS
-                </canvas>
-                <script>
-                    var canvas = document.getElementById("mycanvas");
-                    var gl = canvas.getContext("webgl");
-                    var mymain = new main;
-                    
-                    window.onkeydown = main.keyD;
-                    window.onkeyup = main.keyU;
-                    requestAnimationFrame(main.mainLoop);
-                </script>
-            </div>
-            <div class="story" style="height: 665px;">
-                <h3 class="text">
-                    Welcome to Greedy Dragons!<br><br>
-                    In this game, you play a young green dragon, who wishes to accumlulate massive amounts of wealth. So he flies through the sky in search of great fortune!<br>
-                    However, you are not alone. Red dragons, the most greedy and evil of all dragons, seek this wealth too, and unlike you, are much bigger and far more aggressive. If they get you, you will die.<br>
-                    Your one advantage against them: your breath. Because the red dragons are much older then you, their breath is much weaker and does not hurt you. Meaning that you can shoot them down from a distance and they will be unable to do anything about it.<br>
-                    So go, collect coins, dodge and shoot red dragons, and become richer then your wildest dreams!<br>
-                    <br>
-                    How to play:<br>
-                    Use WASD to move the green dragon around the screen.<br>
-                    Fly to coins to collect them. When you collect a coin, you will earn a point and a new one will spawn.<br>
-                    Whenever you collect a coin, there is a chance of a red dragon spawning. If you touch them or they touch you, you die.<br>
-                    Press the space bar to a fireball. There can only be one fireball on the screen at a time.<br>
-                    Keep collecting coins until you die.<br>
-                    If you die or want to start over, press enter to restart.<br>
-                    The game keeps track of your high score. Try to beat it!<br>
-                    There is also a cheat code involving another key on your keyboard. Try to find it!<br>
-                    <br>
-                    GLHF!
-                </h3>
+        <div class="verticalBox">
+            <div class="flexBox">
+                <div class="clouds">
+                    <p id="score" class="score">Error</p>
+                    <canvas id="mycanvas" width="600" height="600">
+                        YOUR BROWSER DOES NOT SUPPORT CANVAS
+                    </canvas>
+                    <script>
+                        var canvas = document.getElementById("mycanvas");
+                        var gl = canvas.getContext("webgl");
+                        var mymain = new main;
+                        
+                        window.onkeydown = main.keyD;
+                        window.onkeyup = main.keyU;
+                        requestAnimationFrame(main.mainLoop);
+                    </script>
+                </div>
+                <div class="story" style="height: 665px;">
+                    <h3 class="text">
+                        Welcome to Greedy Dragons!<br><br>
+                        In this game, you play a young green dragon, who wishes to accumlulate massive amounts of wealth. So he flies through the sky in search of great fortune!<br>
+                        However, you are not alone. Red dragons, the most greedy and evil of all dragons, seek this wealth too, and unlike you, are much bigger and far more aggressive. If they get you, you will die.<br>
+                        Your one advantage against them: your breath. Because the red dragons are much older then you, their breath is much weaker and does not hurt you. Meaning that you can shoot them down from a distance and they will be unable to do anything about it.<br>
+                        So go, collect coins, dodge and shoot red dragons, and become richer then your wildest dreams!<br>
+                        <br>
+                        How to play:<br>
+                        Use WASD to move the green dragon around the screen.<br>
+                        Fly to coins to collect them. When you collect a coin, you will earn a point and a new one will spawn.<br>
+                        Whenever you collect a coin, there is a chance of a red dragon spawning. If you touch them or they touch you, you die.<br>
+                        Press the space bar to a fireball. There can only be one fireball on the screen at a time.<br>
+                        Keep collecting coins until you die.<br>
+                        If you die or want to start over, press enter to restart.<br>
+                        The game keeps track of your high score. Try to beat it!<br>
+                        There is also a cheat code involving another key on your keyboard. Try to find it!<br>
+                        <br>
+                        GLHF!
+                    </h3>
+                </div>
             </div>
             <div>
                 <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-                <button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>
+                <!--<button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>-->
             </div>
         </div>
     </body>

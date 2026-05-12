@@ -150,38 +150,40 @@
         <div class="box">
             <h1 class="title">Lets Go Gambling!</h1>
         </div>
-        <div class="flexBox">
-            <div class="screen" id="screen">
-                <h1>Lets Go Gambling!</h1>
-                <p>How many slots do you wish to spin?</p>
-                <form id="amount">
-                    <label>Enter an Amount:</label>
-                    <input type="text" name="slots" value="3" style="width:100px"><br><br>
-                    <button id="playButton" onclick="play()">Spin</button>
-                </form>
-                <p id="Money"></p>
-                <div class="slots" id="slots"></div>
-            </div>
-            <div class="greenBox">
-                <h2 class="credits">Image Credits</h2>
-                <div class="flexbox">
-                    <div class="creditRoles">
-                        <h3 class="text">Numbers</h3>
-                    </div>
-                    <div class="creditLinks">
-                        <h3 class="text">
-                            <a class="credit" target="_blank" href="https://www.thecompliancecenter.com/product/dc-100x4w/">icc Compliance Center</a>
-                        </h3>
+        <div class="verticalBox">
+            <div class="flexBox">
+                <div class="screen" id="screen">
+                    <h1>Lets Go Gambling!</h1>
+                    <p>How many slots do you wish to spin?</p>
+                    <form id="amount">
+                        <label>Enter an Amount:</label>
+                        <input type="text" name="slots" value="3" style="width:100px"><br><br>
+                        <button id="playButton" onclick="play()">Spin</button>
+                    </form>
+                    <p id="Money"></p>
+                    <div class="slots" id="slots"></div>
+                </div>
+                <div class="greenBox">
+                    <h2 class="credits">Image Credits</h2>
+                    <div class="flexbox">
+                        <div class="creditRoles">
+                            <h3 class="text">Numbers</h3>
+                        </div>
+                        <div class="creditLinks">
+                            <h3 class="text">
+                                <a class="credit" target="_blank" href="https://www.thecompliancecenter.com/product/dc-100x4w/">icc Compliance Center</a>
+                            </h3>
+                        </div>
                     </div>
                 </div>
+                <script>
+                    var mymain = new main(3);
+                </script>
             </div>
             <div>
                 <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-                <button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>
+                <!--<button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>-->
             </div>
-            <script>
-                var mymain = new main(3);
-            </script>
         </div>
     </body>
 </html>

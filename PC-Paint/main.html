@@ -429,83 +429,85 @@
         <div class="box">
             <h1 class="title">PC Paint Program</h1>
         </div>
-        <div class="flexBox">
-            <div class="gameBox" style="width: 650px;">
-                <div style="margin-top: 5px;">
-                    <label for="shape">Shape</label>
-                    <select id="shape">
-                        <option>None</option>
-                        <option value=0>Box</option>
-                        <option value=1>Circle</option>
-                        <option value=2>Line</option>
-                        <option value=3>Triangle</option>
-                        <option value=4>Custom</option>
-                    </select>
-                    <label for="color">Color</label>
-                    <select id="color">
-                        <option>None</option>
-                        <option value=1>Black</option>
-                        <option value=2>Red</option>
-                        <option value=3>Green</option>
-                        <option value=4>Blue</option>
-                        <option value=5>Yellow</option>
-                        <option value=6>Purple</option>
-                        <option value=7>Cyan</option>
-                        <option value=8>White</option>
-                    </select>
-                    <label for="fill">Style</label>
-                    <select id="fill">
-                        <option>None</option>
-                        <option value=0>Outline</option>
-                        <option value=5>Fill</option>
-                    </select>
-                    <label for="background">Background</label>
-                    <select id="background">
-                        <option>None</option>
-                        <option value=1>Black</option>
-                        <option value=2>Red</option>
-                        <option value=3>Green</option>
-                        <option value=4>Blue</option>
-                        <option value=5>Yellow</option>
-                        <option value=6>Purple</option>
-                        <option value=7>Cyan</option>
-                        <option value=8>White</option>
-                    </select>
-                    <button id="reset">Reset</button>
+        <div class="verticalBox">
+            <div class="flexBox">
+                <div class="gameBox" style="width: 650px;">
+                    <div style="margin-top: 5px;">
+                        <label for="shape">Shape</label>
+                        <select id="shape">
+                            <option>None</option>
+                            <option value=0>Box</option>
+                            <option value=1>Circle</option>
+                            <option value=2>Line</option>
+                            <option value=3>Triangle</option>
+                            <option value=4>Custom</option>
+                        </select>
+                        <label for="color">Color</label>
+                        <select id="color">
+                            <option>None</option>
+                            <option value=1>Black</option>
+                            <option value=2>Red</option>
+                            <option value=3>Green</option>
+                            <option value=4>Blue</option>
+                            <option value=5>Yellow</option>
+                            <option value=6>Purple</option>
+                            <option value=7>Cyan</option>
+                            <option value=8>White</option>
+                        </select>
+                        <label for="fill">Style</label>
+                        <select id="fill">
+                            <option>None</option>
+                            <option value=0>Outline</option>
+                            <option value=5>Fill</option>
+                        </select>
+                        <label for="background">Background</label>
+                        <select id="background">
+                            <option>None</option>
+                            <option value=1>Black</option>
+                            <option value=2>Red</option>
+                            <option value=3>Green</option>
+                            <option value=4>Blue</option>
+                            <option value=5>Yellow</option>
+                            <option value=6>Purple</option>
+                            <option value=7>Cyan</option>
+                            <option value=8>White</option>
+                        </select>
+                        <button id="reset">Reset</button>
+                    </div>
+                    <canvas id="mycanvas" width="600" height="600" style = "border: 1px solid #000; margin-top: 2px;">
+                        Your Browser does not support Canvas
+                    </canvas>
                 </div>
-                <canvas id="mycanvas" width="600" height="600" style = "border: 1px solid #000; margin-top: 2px;">
-                    Your Browser does not support Canvas
-                </canvas>
-            </div>
-            <div class="story" style="height: 629.8px">
-                <h3 class="text">
-                    Welcome to the PC Paint Program!<br><br>
-                    Unlike most things on this website, this is not a game, rather it is a paint program.<br> 
-                    It allows you to draw whatever your heart's desire is. This website is your canvas!<br>
-                    <br>
-                    Instructions:<br><br>
-                    You have four tools at your disposal, Shape, Color, Style, and Background.<br>
-                    Shape allows you to choose from 5 different shapes to draw, boxes, circles, lines, trangles, or your very own custom polygon!<br>
-                    Color allows you to choose from 8 different colors to make those shapes, black, red, green, blue, yellow, purple, cyan, or white.<br>
-                    Style allows you to choose from 2 different fill styles to make your shapes. Outline only applies color to the outline while fill fills in the whole shape.<br>
-                    Background allows you to change the background color of the canvas to any of the same colors as Color does.<br>
-                    <br>
-                    To draw a shape, select your shape, color, and style from the drop down menus.<br>
-                    Then click anywhere on the canvas to start drawing.<br>
-                    When you click, the first part of the shape will be placed. As you move the curser, the shape will form based where your curser is.<br>
-                    If you have not selected a shape, color, or style, nothing will happen.<br>
-                    Keep clicking to add more points until the shape finishes.<br>
-                    Custom shapes can have as many points as you want. Once you have all the points you desire, right click to finish the shape.<br>
-                    If you want a multicolor shape, simply change the color after adding each point.<br>
-                    If at any point you realize you picked the wrong shape midway through making it, simply right click and the shape will disappear.<br>
-                    Finally, click Reset to reset the canvas.<br>
-                    <br>
-                    Enjoy the PC Paint Program!
-                </h3>
+                <div class="story" style="height: 629.8px">
+                    <h3 class="text">
+                        Welcome to the PC Paint Program!<br><br>
+                        Unlike most things on this website, this is not a game, rather it is a paint program.<br> 
+                        It allows you to draw whatever your heart's desire is. This website is your canvas!<br>
+                        <br>
+                        Instructions:<br><br>
+                        You have four tools at your disposal, Shape, Color, Style, and Background.<br>
+                        Shape allows you to choose from 5 different shapes to draw, boxes, circles, lines, trangles, or your very own custom polygon!<br>
+                        Color allows you to choose from 8 different colors to make those shapes, black, red, green, blue, yellow, purple, cyan, or white.<br>
+                        Style allows you to choose from 2 different fill styles to make your shapes. Outline only applies color to the outline while fill fills in the whole shape.<br>
+                        Background allows you to change the background color of the canvas to any of the same colors as Color does.<br>
+                        <br>
+                        To draw a shape, select your shape, color, and style from the drop down menus.<br>
+                        Then click anywhere on the canvas to start drawing.<br>
+                        When you click, the first part of the shape will be placed. As you move the curser, the shape will form based where your curser is.<br>
+                        If you have not selected a shape, color, or style, nothing will happen.<br>
+                        Keep clicking to add more points until the shape finishes.<br>
+                        Custom shapes can have as many points as you want. Once you have all the points you desire, right click to finish the shape.<br>
+                        If you want a multicolor shape, simply change the color after adding each point.<br>
+                        If at any point you realize you picked the wrong shape midway through making it, simply right click and the shape will disappear.<br>
+                        Finally, click Reset to reset the canvas.<br>
+                        <br>
+                        Enjoy the PC Paint Program!
+                    </h3>
+                </div>
             </div>
             <div>
                 <button class="norm" onclick="window.location.href='../index.html'">Return Home</button>
-                <button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>
+                <!--<button class="norm" onclick='alert("There is currently no play through of this game. But there may be soon!");'>Watch Playthrough</button>-->
             </div>
         </div>
         <script>

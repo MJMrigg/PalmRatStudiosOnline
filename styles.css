@@ -41,7 +41,7 @@ button.norm{
     border: 3px solid lime;
     color: lime;
     font-size: 20px;
-    margin-top: 5px;
+    margin-top: 0px;
     margin-bottom: 5px;
     margin-left: 5px;
     margin-right: 5px;
@@ -80,7 +80,7 @@ button.play{
     background-color: black;
     font-size: 20px;
     color: lime;
-    margin-bottom: 3px;
+    margin-bottom: 10px;
 }
 h2.credits{
     color: lime;
@@ -212,4 +212,13 @@ div.popupBox{
     background-color: black;
     top: 30%;
     left: 0%;
+}
+div.verticalBox{
+    display: flex;
+    flex-direction: column;
+    background-color: black;
+    width: 100%;
+    min-width: 900px;
+    margin: 0;
+    float: center;
 }
