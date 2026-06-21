@@ -858,7 +858,10 @@
                     //Add event key listeners and start the game
                     window.onkeydown = main.keyD;
                     window.onkeyup = main.keyU;
-                    canvas.addEventListener("click",main.mouseD);
+                    canvas.addEventListener("pointerdown",main.mouseD);
+                    canvas.addEventListener('selectstart', function(e) {
+                        e.preventDefault(); // stop double click text selection on mobile devices
+                    });
                     requestAnimationFrame(main.mainLoop);
                 </script>
             </div>

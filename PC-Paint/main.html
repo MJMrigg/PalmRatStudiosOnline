@@ -434,8 +434,7 @@
                 <div class="gameBox" style="width: 650px;">
                     <div style="margin-top: 5px;">
                         <label for="shape">Shape</label>
-                        <select id="shape">
-                            <option>None</option>
+                        <select id="shape" value=0>
                             <option value=0>Box</option>
                             <option value=1>Circle</option>
                             <option value=2>Line</option>
@@ -443,8 +442,7 @@
                             <option value=4>Custom</option>
                         </select>
                         <label for="color">Color</label>
-                        <select id="color">
-                            <option>None</option>
+                        <select id="color" value=1>
                             <option value=1>Black</option>
                             <option value=2>Red</option>
                             <option value=3>Green</option>
@@ -455,14 +453,12 @@
                             <option value=8>White</option>
                         </select>
                         <label for="fill">Style</label>
-                        <select id="fill">
-                            <option>None</option>
+                        <select id="fill" value=0>
                             <option value=0>Outline</option>
                             <option value=5>Fill</option>
                         </select>
                         <label for="background">Background</label>
-                        <select id="background">
-                            <option>None</option>
+                        <select id="background" value=8>
                             <option value=1>Black</option>
                             <option value=2>Red</option>
                             <option value=3>Green</option>
@@ -517,18 +513,26 @@
 
             var shapeSelect = document.getElementById("shape");
             shapeSelect.addEventListener("click", main.shapeChange);
+            shapeSelect.click();
             var colorSelect = document.getElementById("color");
             colorSelect.addEventListener("click", main.colorChange);
+            colorSelect.click();
             var fillSelect = document.getElementById("fill");
             fillSelect.addEventListener("click", main.fillChange);
+            fillSelect.click();
             var backgroundSelect = document.getElementById("background");
             backgroundSelect.addEventListener("click", main.backgroundChange);
+            backgroundSelect.value = 8; //This is the only one whos value needs to be set because it's not the first value
+            backgroundSelect.click();
             var reset = document.getElementById("reset");
             reset.addEventListener("click", main.resetCanvas);
 
-            canvas.addEventListener("click", main.click);
+            canvas.addEventListener("pointerdown", main.click);
             canvas.addEventListener("contextmenu", main.rightClick);
-            canvas.addEventListener("mousemove", main.mouseMove);
+            canvas.addEventListener("pointermove", main.mouseMove);
+            canvas.addEventListener('selectstart', function(e) {
+                e.preventDefault(); // stop double click text selection on mobile devices
+            });
         </script>
     </body>
 </html> 

@@ -546,7 +546,10 @@
                     var ctx = canvas.getContext('2d');
                     var mymain = new main;
 
-                    canvas.addEventListener("click",main.click);
+                    canvas.addEventListener("pointerdown",main.click);
+                    canvas.addEventListener('selectstart', function(e) {
+                        e.preventDefault(); // stop double click text selection on mobile devices
+                    });
                 </script>
             </div>
             <div>

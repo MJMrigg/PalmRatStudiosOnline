@@ -1030,6 +1030,9 @@
                         window.onkeydown = main.keyD;
                         window.onkeyup = main.keyU;
                         requestAnimationFrame(main.mainLoop);
+                        canvas.addEventListener('selectstart', function(e) {
+                            e.preventDefault(); // stop double click text selection on mobile devices
+                        });
                     </script>
                 </div>
                 <div class="story" style="height: 665px;">
