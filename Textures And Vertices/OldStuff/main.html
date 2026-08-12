@@ -1,0 +1,1153 @@
+<html>
+    <title>Textures and Vertices</title>
+    <head>
+        <script id="2dVertexShader" type="notjs">
+            attribute vec4 a_position;
+            attribute vec3 a_color;
+            varying vec3 frag_color;
+            uniform vec3 translate;
+            uniform vec3 rotate;
+            uniform vec3 scale;
+
+            uniform vec3 worldLoc;
+            uniform vec3 worldRotation;
+            uniform float n; //near
+            uniform float f; //far
+            uniform float r; //right
+            uniform float t; //top
+
+            //Lighting
+            uniform vec3 light_positions[5];
+            uniform vec3 spot_light_position;
+            uniform vec3 ufo_light_position;
+            varying vec3 fakeNormal;
+            varying vec3 v_surfaceToLights[5];
+            varying vec3 v_spot_surfaceTolight;
+            varying vec3 v_moon_surfaceToLight;
+            varying vec3 v_ufo_surfaceToLight;
+
+
+            vec4 MoveCamera(vec4 pos){
+                //Just transformations with the world but inversed
+                vec3 cw = cos(worldRotation);
+                vec3 sw = sin(worldRotation);
+                float x = worldLoc.x;
+                float y = worldLoc.y;
+                float z = worldLoc.z;
+                mat4 translateView = mat4( //The camera is already looking down the negative z-axis, hence why it's not negative
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    -1.0*x,-1.0*y,z,1.0
+                );
+                mat4 rotateViewX = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,cw.x,sw.x,0.0,
+                    0.0,-1.0*sw.x,cw.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewY = mat4( //He only did the y rotation
+                    cw.y,0.0,-1.0*sw.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    sw.y,0.0,cw.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewZ = mat4(
+                    cw.z,sw.z,0.0,0.0,
+                    -1.0*sw.z,cw.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return (rotateViewZ*rotateViewY*rotateViewX)*translateView*pos;
+            }
+            
+            vec4 ApplyProjections(vec4 pos){
+                //Choose one of these to use. Probably ComplexPerspective
+                mat4 simpleOrtho = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 ComplexPerspective = mat4(
+                    n/r,0.0,0.0,0.0,
+                    0.0,n/t,0.0,0.0,
+                    0.0,0.0,-1.0*(f+n)/(f-n),-1.0,
+                    0.0,0.0,-2.0*(f*n)/(f-n),0.0
+                );
+                mat4 ComplexOrtho = mat4(
+                    1.0/r,0.0,0.0,0.0,
+                    0.0,1.0/t,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 SimplePerspective = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,-1.0,-1.0,
+                    0.0,0.0,-2.0,0.0
+                );
+                return ComplexPerspective*pos;
+            }
+            
+            vec4 translation(vec4 curPosition){
+                mat4 translationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    translate.x,translate.y,translate.z,1.0
+                );
+                return translationMatrix*curPosition;
+            }
+            vec4 rotation(vec4 curRotation){
+                vec3 c = cos(rotate);
+                vec3 s = sin(rotate);
+                mat4 xRotationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,c.x,s.x,0.0,
+                    0.0,-1.0*s.x,c.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 yRotateMatrix = mat4(
+                    c.y,0.0,-1.0*s.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    s.y,0.0,c.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 zRotateMatrix = mat4(
+                    c.z,s.z,0.0,0.0,
+                    -1.0*s.z,c.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return zRotateMatrix*yRotateMatrix*xRotationMatrix*curRotation;
+            }
+            vec4 scaleTransform(vec4 curScale){
+                mat4 scaleMatrix = mat4(
+                    scale.x,0.0,0.0,0.0,
+                    0.0,scale.y,0.0,0.0,
+                    0.0,0.0,scale.z,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return scaleMatrix*curScale;
+            }
+            
+            void main(){
+                //Handle Lighting
+                //Get distance from vertex to center of the object
+                if(length(a_position)<5.0){
+                    fakeNormal = rotation(a_position).xyz; //Calculate normal with regards of the object's rotation
+                    //This ensures any shine does not rotate with the object
+                }else{
+                    fakeNormal = vec3(0.0,1.0,0.0); //Larger objects will have real normals
+                }
+                vec4 worldSpace = translation(rotation(scaleTransform(a_position)));
+                for(int i = 0; i < 5; i++){ //Get directions of point lights
+                    v_surfaceToLights[i] = light_positions[i]-worldSpace.xyz;
+                }
+                v_spot_surfaceTolight = spot_light_position-worldSpace.xyz; //Position spot light
+                v_moon_surfaceToLight = vec3(20,5,20)-worldSpace.xyz; //Position moon light
+                v_ufo_surfaceToLight = ufo_light_position-worldSpace.xyz; //Position UFO light
+
+                //vec4 worldSpace = translation(rotation(scaleTransform(a_position)));
+                frag_color = a_color;
+                vec4 cameraSpace = MoveCamera(worldSpace);
+                gl_Position = ApplyProjections(cameraSpace);
+            }
+        </script>
+        <script id="2dFragmentShader" type="notjs">
+            precision mediump float;
+            varying vec3 frag_color;
+
+            //Lighting
+            varying vec3 fakeNormal;
+            varying vec3 v_surfaceToLights[5];
+            varying vec3 v_spot_surfaceTolight;
+            varying vec3 v_moon_surfaceToLight;
+            varying vec3 v_ufo_surfaceToLight;
+            
+            void main(){
+                gl_FragColor = vec4(frag_color,1); //Set color
+
+                //Handle how ambient light affects color
+                float ambient = 1.0;
+                gl_FragColor = vec4(ambient*frag_color,1);
+
+                //Handle how directional light affects color
+                float directional_light = dot(normalize(fakeNormal),normalize(vec3(20,5,20))*0.25);
+                if(directional_light < 0.0){
+                    directional_light = 0.0;
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light),1);
+
+                //Handle how the point lights affect the color
+                vec3 point_lights;
+                for(int i = 0; i < 5; i++){
+                    float a_point_light = dot(normalize(fakeNormal),normalize(v_surfaceToLights[i]/length(v_surfaceToLights[i])));
+                    if(a_point_light < 0.0){
+                        a_point_light = 0.0;
+                    }
+                    point_lights += a_point_light;
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights),1);
+                
+                //Handle how the spot light affects the color
+                float spot_light = dot(normalize(v_spot_surfaceTolight),vec3(0,1,0)); //vec3=The opposite direction of the spot light
+                float spot_light_power = 0.0;
+                if(spot_light >= 0.87){ //This makes the cone. The closer it is to 1.0, the smaller the cone
+                    //Literally a point light
+                    spot_light_power = dot(normalize(fakeNormal),normalize(v_spot_surfaceTolight));
+                    if(spot_light_power < 0.0){
+                        spot_light_power = 0.0;
+                    }
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights + spot_light_power),1);
+
+                //Add moonlight, which is a spot light pointing at the moon
+                float moon_light = dot(normalize(v_moon_surfaceToLight),vec3(20,5,20));
+                float moon_light_power = 0.0;
+                if(moon_light >= 0.9){
+                    moon_light_power = dot(normalize(fakeNormal),normalize(v_moon_surfaceToLight));
+                    if(moon_light_power < 0.0){
+                        moon_light_power = 0.0;
+                    }
+                }
+                gl_FragColor = vec4(frag_color*(ambient + directional_light + point_lights + spot_light_power + moon_light_power),1);
+
+                //Add UFO light, which is a spot light pointing at the bottom of the ufo
+                float ufo_light = dot(normalize(v_ufo_surfaceToLight),vec3(0,-1,0));
+                float ufo_light_power = 0.0;
+                if(ufo_light >= 0.85){
+                    ufo_light_power = dot(normalize(fakeNormal),normalize(v_ufo_surfaceToLight));
+                    if(ufo_light_power < 0.0){
+                        ufo_light_power = 0.0;
+                    }
+                }
+                gl_FragColor = vec4(frag_color*(ambient/* + directional_light + point_lights + spot_light_power + moon_light_power + ufo_light_power*/),1);
+            }
+        </script>
+        <script id="2dTextureShader" type="notjs">
+            attribute vec4 a_position;
+            uniform vec3 translate;
+            uniform vec3 rotate;
+            uniform vec3 scale;
+
+            uniform vec3 worldLoc;
+            uniform vec3 worldRotation;
+            uniform float n; //near
+            uniform float f; //far
+            uniform float r; //right
+            uniform float t; //top
+
+            //Lighting
+            uniform vec3 light_positions[16];
+            uniform vec3 spot_light_position;
+            varying vec3 fakeNormal;
+            varying vec3 v_surfaceToLights[16];
+            varying vec3 v_spot_surfaceTolight;
+            varying vec3 directional_light_direction;
+
+            //Textures
+            attribute vec2 texCord;
+            varying vec2 v_textCord; 
+            uniform bool faceCam; //If the object is a billiboard or not
+
+            vec4 MoveCamera(vec4 pos){
+                //Just transformations with the world but inversed
+                vec3 cw = cos(worldRotation);
+                vec3 sw = sin(worldRotation);
+                float x = worldLoc.x;
+                float y = worldLoc.y;
+                float z = worldLoc.z;
+                mat4 translateView = mat4( //The camera is already looking down the negative z-axis, hence why it's not negative
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,-1.0,0.0,
+                    -1.0*x,-1.0*y,z,1.0
+                );
+                mat4 rotateViewX = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,cw.x,sw.x,0.0,
+                    0.0,-1.0*sw.x,cw.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewY = mat4( //He only did the y rotation
+                    cw.y,0.0,-1.0*sw.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    sw.y,0.0,cw.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 rotateViewZ = mat4(
+                    cw.z,sw.z,0.0,0.0,
+                    -1.0*sw.z,cw.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return (rotateViewZ*rotateViewY*rotateViewX)*translateView*pos;
+            }
+            
+            vec4 ApplyProjections(vec4 pos){
+                //Choose one of these to use. Probably ComplexPerspective
+                mat4 simpleOrtho = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 ComplexPerspective = mat4(
+                    n/r,0.0,0.0,0.0,
+                    0.0,n/t,0.0,0.0,
+                    0.0,0.0,-1.0*(f+n)/(f-n),-1.0,
+                    0.0,0.0,-2.0*(f*n)/(f-n),0.0
+                );
+                mat4 ComplexOrtho = mat4(
+                    1.0/r,0.0,0.0,0.0,
+                    0.0,1.0/t,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 SimplePerspective = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,-1.0,-1.0,
+                    0.0,0.0,-2.0,0.0
+                );
+                return ComplexPerspective*pos;
+            }
+            
+            vec4 translation(vec4 curPosition){
+                mat4 translationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,1.0,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    translate.x,translate.y,translate.z,1.0
+                );
+                return translationMatrix*curPosition;
+            }
+            vec4 rotation(vec4 curRotation){
+                vec3 c = cos(rotate);
+                vec3 s = sin(rotate);
+                mat4 xRotationMatrix = mat4(
+                    1.0,0.0,0.0,0.0,
+                    0.0,c.x,s.x,0.0,
+                    0.0,-1.0*s.x,c.x,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 yRotateMatrix = mat4(
+                    c.y,0.0,-1.0*s.y,0.0,
+                    0.0,1.0,0.0,0.0,
+                    s.y,0.0,c.y,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                mat4 zRotateMatrix = mat4(
+                    c.z,s.z,0.0,0.0,
+                    -1.0*s.z,c.z,0.0,0.0,
+                    0.0,0.0,1.0,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return zRotateMatrix*yRotateMatrix*xRotationMatrix*curRotation;
+            }
+            vec4 lookAt(vec3 forward, vec3 up, vec4 position){
+                //Find right vector
+                vec3 right = cross(forward, up);
+                mat4 lookAt = mat4(
+                    right.x, right.y, right.z, 0.0,
+                    up.x, up.y, up.z, 0.0,
+                    forward.x, forward.y, forward.z, 0.0,
+                    0.0, 0.0, 0.0, 1.0
+                );
+                return lookAt * position;
+            }
+            vec4 scaleTransform(vec4 curScale){
+                mat4 scaleMatrix = mat4(
+                    scale.x,0.0,0.0,0.0,
+                    0.0,scale.y,0.0,0.0,
+                    0.0,0.0,scale.z,0.0,
+                    0.0,0.0,0.0,1.0
+                );
+                return scaleMatrix*curScale;
+            }
+            
+            void main(){
+                if(length(a_position) < 5.0){
+                    fakeNormal = vec3(a_position);
+                }else{
+                    fakeNormal = vec3(0.0,1.0,0.0);
+                }
+
+                //Transform the object
+                vec4 worldSpace = vec4(0.0, 0.0, 0.0, 1.0);
+                //Handle if the object is a billiboard or not
+                if(faceCam){
+                    vec3 forward = normalize(vec3(worldLoc.x, worldLoc.y, worldLoc.z) - translate);
+                    vec3 up = vec3(0.0, 1.0, 0.0);
+                    worldSpace = translation(lookAt(forward,up,scaleTransform(a_position)));
+                }else{
+                    worldSpace = translation(rotation(scaleTransform(a_position)));
+                }
+                //Transform the object relative to the camera
+                vec4 cameraSpace = MoveCamera(worldSpace);
+                gl_Position = ApplyProjections(cameraSpace);
+
+                //Lighting
+                directional_light_direction = vec3(54,5,-54);
+                for(int i = 0; i < 16; i++){ //Get directions of point light
+                    v_surfaceToLights[i] = light_positions[i]-worldSpace.xyz;
+                }
+
+                //Textures
+                v_textCord = texCord;
+            }
+        </script>
+        <script id="2dTextureFragShader" type="notjs">
+            precision mediump float;
+
+            //Lighting
+            varying vec3 fakeNormal;
+            varying vec3 directional_light_direction;
+            varying vec3 v_surfaceToLights[16];
+            varying vec3 v_spot_surfaceTolight;
+            
+
+            //Textures
+            varying vec2 v_textCord;
+            uniform sampler2D sampler;
+            
+            void main(){
+                //Apply the texture
+                vec4 textureColor = texture2D(sampler,v_textCord); //Sample through the texture
+                if(textureColor.w < 1.0){ //If that part of the image was transparent
+                    discard;
+                }
+                float light = 1.0;
+                gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z)*light, 1.0);
+
+                //Apply Ambient Light
+                float ambient_light = 0.5;
+                light = ambient_light;
+                gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z)*light, 1.0);
+
+                //Apply Directional Light
+                float directional_light = dot(normalize(fakeNormal),normalize(directional_light_direction));
+                light += directional_light;
+                gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z)*light, 1.0);
+
+                //Apply Point lights
+                for(int i = 0; i < 16; i++){
+                    float a_point_light = dot(normalize(fakeNormal),normalize(v_surfaceToLights[i])/length(v_surfaceToLights[i]));
+                    if(a_point_light < 0.0){
+                        a_point_light = 0.0;
+                    }
+                    light += a_point_light;
+                }
+                gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z)*light, 1.0);
+            }
+        </script>
+        <script>
+            class webgl{
+                constructor(){
+                    //Get shader source files
+                    this.vertexShaderSource = document.getElementById("2dVertexShader").text;
+                    this.fragmentShaderSource = document.getElementById("2dFragmentShader").text;
+                    this.textureShaderSource = document.getElementById("2dTextureShader").text;
+                    this.textureFragShaderSource = document.getElementById("2dTextureFragShader").text;
+
+                    //Create shaders
+                    this.vertexShader = this.createShader(gl.VERTEX_SHADER, this.vertexShaderSource);
+                    this.fragmentShader = this.createShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource);
+                    this.textureShader = this.createShader(gl.VERTEX_SHADER, this.textureShaderSource);
+                    this.textureFragShader = this.createShader(gl.FRAGMENT_SHADER, this.textureFragShaderSource);
+
+                    //Create programs
+                    this.vertexProgram = this.createProgram([this.vertexShader, this.fragmentShader]);
+                    this.textureProgram = this.createProgram([this.textureShader, this.textureFragShader]);
+                    this.programs = {
+                        vertexProgram: this.vertexProgram,
+                        textureProgram: this.textureProgram
+                    };
+
+                    //Setup Viewport
+                    gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
+                    gl.clearColor(0,0,0,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    //Render near objects over far objects
+                    gl.enable(gl.DEPTH_TEST);
+                    
+                    //Set up perspective in all the programs
+                    for(var i in this.programs){
+                        var program = this.programs[i];
+                        gl.useProgram(program);
+
+                        //Initialize cameraLoc and worldLoc uniforms
+                        var camLoc = gl.getUniformLocation(program,"worldLoc");
+                        gl.uniform3fv(camLoc,new Float32Array([0,0,0]));
+                        var worldLoc = gl.getUniformLocation(program,"worldRotation");
+                        gl.uniform3fv(worldLoc,new Float32Array([0,0,0]));
+
+                        //Initialize near, far, right, and top
+                        //Right and top are associated with the width and height of the canvas
+                        var r;
+                        var t;
+                        var tempLoc;
+                        //Get the ratio of width to height with the smaller of the two on top. Divide it by 2 and scale it by (1/100)
+                        //Whichever variable associated with the smaller of the two will be set equal to this value
+                        //The other one will be set equal to 1, divided by 2, and scaled by (1/100)
+                        //Near will be the max of right and top
+                        //Leaving far as the only variable needing to be set by human hand
+                        if(canvas.width > canvas.height){
+                            t = ((canvas.height/canvas.width)/2)*0.01; //Get Ratio
+                            tempLoc = gl.getUniformLocation(program,'t'); //Get variable location
+                            gl.uniform1f(tempLoc,t); //Set variable
+                            r = (1/2)*0.01; //Handle the other one
+                            tempLoc = gl.getUniformLocation(program,'r'); //Get variable location
+                            gl.uniform1f(tempLoc,r); //Set variable
+                        }else if(canvas.height > canvas.wdith){
+                            r = ((canvas.width/canvas.height)/2)*0.01;
+                            tempLoc = gl.getUniformLocation(program,'r');
+                            gl.uniform1f(tempLoc,r);
+                            t = (1/2)*0.01;
+                            tempLoc = gl.getUniformLocation(program,'t');
+                            gl.uniform1f(tempLoc,t);
+                        }else if(canvas.width == canvas.height){
+                            t = (1/2)*0.01;
+                            tempLoc = gl.getUniformLocation(program,'t');
+                            gl.uniform1f(tempLoc,t);
+                            r = (1/2)*0.01;
+                            tempLoc = gl.getUniformLocation(program,'r');
+                            gl.uniform1f(tempLoc,r);
+                        }
+                        var tempLoc = gl.getUniformLocation(program,'n');
+                        gl.uniform1f(tempLoc, Math.max(r,t)); //Make this 0.001 for fun
+                        tempLoc = gl.getUniformLocation(program,'f');
+                        gl.uniform1f(tempLoc,2); //Distance the camera can see.
+
+                        //Remember, render the camera first, then objects. And apply camera transformations to objects.
+                        //For Camera control, treat it as a normal object except using worldLoc and worldRotation when rendering
+                        //Want to get another uniform? Make (0,0) in the top or bottom left corners
+                    }
+                }
+
+                createShader(type,source){
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader,source);
+                    gl.compileShader(shader);
+                    var sucess = gl.getShaderParameter(shader,gl.COMPILE_STATUS);
+                    if(sucess){
+                        return shader;
+                    }
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                }
+
+                createProgram(shaders){
+                    var program = gl.createProgram();
+                    for(var i = 0; i < shaders.length; i++){
+                        gl.attachShader(program, shaders[i]);
+                    }
+                    gl.linkProgram(program);
+                    var sucess = gl.getProgramParameter(program,gl.LINK_STATUS);
+                    if(sucess){
+                        return program;
+                    }
+                    console.error(gl.getProgramInfoLog(program));
+                    gl.deleteProgram();
+                }
+            }
+
+            class transformer{
+                constructor(){
+                    //Determine what direction the z, x, and y vectors face
+                    this.forward = [0,0,1];
+                    this.right = [1,0,0];
+                    this.up = [0,1,0];
+                }
+                //Rotate the vectors
+                doRotations(angles){
+                    //x, y, and z rotation matrices
+                    this.xRotationMatrix = [
+                        [1,0,0,0],
+                        [0,Math.cos(angles[0]),-1*Math.sin(angles[0]),0],
+                        [0,Math.sin(angles[0]),Math.cos(angles[0]),0],
+                        [0,0,0,1]
+                    ];
+                    this.yRotationMatrix = [
+                        [Math.cos(angles[1]),0,Math.sin(angles[1]),0],
+                        [0,1,0,0],
+                        [-1*Math.sin(angles[1]),0,Math.cos(angles[1]),0],
+                        [0,0,0,1]
+                    ];
+                    this.zRotationMatrix = [
+                        [Math.cos(angles[2]),-1*Math.sin(angles[2]),0,0],
+                        [Math.sin(angles[2]),Math.cos(angles[2]),0,0],
+                        [0,0,1,0],
+                        [0,0,0,1]
+                    ];
+                    //Transform each vector
+                    this.forward = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,0,1,0])));
+                    this.right = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[1,0,0,0])));
+                    this.up = this.crossMultiply(this.zRotationMatrix,this.crossMultiply(this.yRotationMatrix,this.crossMultiply(this.xRotationMatrix,[0,1,0,0])));
+                }
+                //Literally just multiplying two matrices
+                crossMultiply(u,v){
+                    return [
+                        u[0][0]*v[0] + u[0][1]*v[1] + u[0][2]*v[2] + u[0][3]*v[3],
+                        u[1][0]*v[0] + u[1][1]*v[1] + u[1][2]*v[2] + u[1][3]*v[3],
+                        u[2][0]*v[0] + u[2][1]*v[1] + u[2][2]*v[2] + u[2][3]*v[3],
+                        u[3][0]*v[0] + u[3][1]*v[1] + u[3][2]*v[2] + u[3][3]*v[3]
+                    ];
+                }
+            }
+            class object{
+                constructor(){
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.isTrigger = false;
+                    this.velocity = [0,0,0]; //Translation Speed
+                    this.angularVelocity = [0,0,0]; //Rotation Speed
+                    this.name = "default";
+                    this.id = 0;
+                    this.prefab; //Object type
+                    this.transform = new transformer(); //Transformer for the object's front facing vectors
+                }
+                handleCollision(object){}
+                update(){}
+                render(programs){}
+                move(){
+                    var temp = [0,0,0];
+                    for(let i = 0; i < 3; i++){
+                        temp[i] = this.location[i];
+                        temp[i] += this.velocity[i];
+                        this.rotation[i] += this.angularVelocity[i];
+                    }
+                    //If the object is about to move off the map, don't let it
+                    if(Math.abs(temp[0]) > 60 || Math.abs(temp[2]) > 60){
+                        return;
+                    }
+                    if(!this.isTrigger){ //If this object is not a trigger object
+                        var noCollision = true; //Assume there is no collision
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this,mymain.solids[i].location,mymain.solids[i])){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                noCollision = false;
+                            }
+                        }
+                        //If no collision, move the object
+                        if(noCollision){
+                            for(let i = 0; i < 3; i++){
+                                this.location[i] = temp[i];
+                            }
+                        }
+                    }else{ //If this object IS a trigger object
+                        //Check all solid objects
+                        for(var i in mymain.solids){
+                            if(this == mymain.solids[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a solid object
+                            if(mymain.checkCollision(temp,this,mymain.solids[i].location,mymain.solids[i])){
+                                this.handleCollision(mymain.solids[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collision
+                                    mymain.solids[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                                /*
+                                    EDGE CASE: When a monster crashes into a place where two walls meet, bad things will happen
+                                    It will detect it collided with the first wall and turn around
+                                    It will then detect it collided with the second wall and turn around again, back in the original orienation
+                                    It will then move forward and crash into the two walls again, continuing the cycle
+                                    Hence why after a trigger object hits a wall and handles colliding with it, it will then cease detecting collisitions
+                                */try{
+                                    /*if(mymain.solids[i].prefab == wall1 
+                                    || mymain.solids[i].prefab == wall2 
+                                    || mymain.solids[i].prefab == wallLight){
+                                        break;
+                                    }*/
+                                }catch{}
+                            }
+                        }
+                        //Check all trigger objects
+                        for(var i in mymain.triggers){
+                            if(this == mymain.triggers[i]){ //Skip this object
+                                continue;
+                            }
+                            //If this object collides with a trigger object
+                            if(mymain.checkCollision(temp,this,mymain.triggers[i].location,mymain.triggers[i])){
+                                this.handleCollision(mymain.triggers[i]); //Make that collision happen for this object
+                                try{ //If the other object wasn't deleted by the collission
+                                    mymain.triggers[i].handleCollision(this); //Make that collision happen for that object
+                                }catch{}
+                            }
+                        }
+                        //Move the object
+                        for(let i = 0; i < 3; i++){
+                            this.location[i] = temp[i];
+                        }
+                    }
+                }
+            }
+
+            class gameObject extends object{
+                constructor(){
+                    super();
+                    this.primitiveType = gl.TRIANGLES; //Default primitive type
+                    this.vertices = [];
+                    this.indices = [];
+                    //this.texture = null;
+                    //Width and Height of the texture(64 by default)
+                    /*this.width = 64;
+                    this.height = 64;*/
+                    //Buffers are null since there is no data buffered to them yet
+                    this.vertexBuffer = null;
+                    //this.textureBuffer = null;
+                    this.indexBuffer = null;
+                    this.collisionRadius = [];
+                    /*this.isBilliboard = false; //Objects are not billiboards by default
+                    this.textureMode_S = null; //How the texture is rendered for S
+                    this.textureMode_T = null; //How the texture is rendered for T*/
+                    this.colorSize = 3; //Vertices have 3 color coordinates, R, G, and B
+                }
+
+                initializeBuffers(){
+                    //Load all the data onto the vertex buffer now that the vertices have been defined
+                    this.vertexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
+                    //Load all the data onto the index buffer now that the indices have been defined
+                    this.indexBuffer = gl.createBuffer();
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer),
+                    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint8Array(this.indices), gl.STATIC_DRAW);
+                }
+
+                //Bind buffers with the data
+                bindBuffers(){
+                    gl.bindBuffer(gl.ARRAY_BUFFER,this.vertexBuffer);
+                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer);
+                }
+
+                //Handle vertices during render
+                handleVertices(program){
+                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = (size+this.colorSize)*Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset);
+                }
+
+                //Handle colors during render
+                handleColors(program){
+                    var colorAttributeLocation = gl.getAttribLocation(program,"a_color");
+                    var size = this.colorSize;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = (3+this.colorSize)*Float32Array.BYTES_PER_ELEMENT; //The 3 comes from xyz
+                    var offset = 3*Float32Array.BYTES_PER_ELEMENT;
+                    gl.enableVertexAttribArray(colorAttributeLocation);
+                    gl.vertexAttribPointer(colorAttributeLocation,size,type,normalize,stride,offset); 
+                }
+
+                //Handle transformations during render
+                handleTransformations(program){
+                    var scaleLocation = gl.getUniformLocation(program,"scale");
+                    gl.uniform3fv(scaleLocation,new Float32Array(this.scale));
+                    var rotateLocation = gl.getUniformLocation(program,"rotate");
+                    gl.uniform3fv(rotateLocation,new Float32Array(this.rotation));
+                    var translateLocation = gl.getUniformLocation(program,"translate");
+                    gl.uniform3fv(translateLocation,new Float32Array(this.location));
+                }
+
+                render(programs){
+                    //Rebind buffers
+                    this.bindBuffers();
+
+                    //Use the vertex program from the list of webgl programs
+                    var program = programs.vertexProgram;
+
+                    //Handle Vertices
+                    this.handleVertices(program);
+
+                    //Handle Colors
+                    this.handleColors(program);
+
+                    //Handle Transformations
+                    this.handleTransformations(program);
+
+                    //Draw Shape
+                    var offset = 0;
+                    gl.drawElements(gl.TRIANGLES,this.indices.length,gl.UNSIGNED_BYTE,offset);
+                }
+            }
+
+            class textureObject extends gameObject{
+                constructor(){
+                    super();
+                    this.texture = null; //Texture data
+                    //Width and Height of the texture(64 by default)
+                    this.width = 64;
+                    this.height = 64;
+                    this.textureBuffer = null; //Separate buffer for textures
+                    this.isBilliboard = false; //Objects are not billiboards by default
+                    this.textureMode_S = null; //How the texture is rendered for S
+                    this.textureMode_T = null; //How the texture is rendered for T
+                    this.colorSize = 2; //Textures only have 2 color coordinates, S and T
+                }
+
+                initializeBuffers(){
+                    //Load vertex and index buffers
+                    super.initializeBuffers();
+                    //Load all the data onto the texture buffer now that the texture has been defined
+                    this.textureBuffer = gl.createTexture();
+                    gl.bindTexture(gl.TEXTURE_2D, this.textureBuffer);
+                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.width,this.height,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(this.texture));
+                }
+
+                //Rebind the texture buffer as well
+                bindBuffers(){
+                    super.bindBuffers();
+                    gl.bindTexture(gl.TEXTURE_2D, this.textureBuffer);
+                }
+
+                /*handleVertices(program){
+                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
+                    var size = 3;
+                    var type = gl.FLOAT;
+                    var normalize = false;
+                    var stride = 5*Float32Array.BYTES_PER_ELEMENT;
+                    var offset = 0;
+                    gl.enableVertexAttribArray(positionAttributeLocation);
+                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset)
+                }
+
+                //Overriden to handle the texture stuff
+                handleColors(program){
+                    var textureAttributeLocation = gl.getAttribLocation(program,"texCord");
+                    size = 2;
+                    offset = 3*Float32Array.BYTES_PER_ELEMENT;
+                    gl.enableVertexAttribArray(textureAttributeLocation);
+                    gl.vertexAttribPointer(textureAttributeLocation,size,type,normalize,stride,offset);
+                }*/
+
+                render(programs){
+                    //Rebind buffers
+                    this.bindBuffers();
+
+                    //Use the texture program
+                    var program = programs.textureProgram;
+
+                    //Handle Vertices
+                    this.handleVertices(program);
+
+                    //Handle the Texture using the overriden handleColors function
+                    this.handleColors(program)
+
+                    //Set up s
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,this.textureMode_S);
+                    //Set up t
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,this.textureMode_T);
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+
+                    //Handle Transformations
+                    this.handleTransformations(program);
+
+                    //Define if it's a billiboard or not
+                    var faceCamLocation = gl.getUniformLocation(program,"faceCam");
+                    gl.uniform1i(faceCamLocation,this.isBilliboard);
+
+                    //Draw Object
+                    offset = 0;
+                    gl.drawElements(this.primitiveType,this.indices.length,gl.UNSIGNED_BYTE,offset);
+                }
+            }
+
+            class square extends gameObject{
+                constructor(){
+                    super();
+                    this.vertices = [
+                        10,10,0,   1,0,0,
+                        10,-10,0,  1,0,0,
+                        -10,-10,0, 1,0,0,
+                        -10,10,0,  1,0,0
+                    ];
+                    this.indices = [
+                        0,1,2,
+                        0,3,2
+                    ];
+                    this.initializeBuffers();
+                }
+            }
+
+            class camera extends object{
+                constructor(){
+                    super();
+                    this.location = [0,0,0];
+                    this.rotation = [0,0,0];
+                    this.scale = [1,1,1];
+                    this.collisionRadius = [1,1,1];
+                    this.health = 5;
+                }
+                update(){
+                    if(this.health <= 0){ //If the player has no more health, restart the game
+                        mymain.end = true;
+                        mymain.start = false;
+                        mymain.startGame();
+                        return;
+                    }
+                    this.transform.doRotations(this.rotation);
+                    if(mymain.checkKey("W")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.forward[i] * 0.1;
+                        }
+                    }else if(mymain.checkKey("S")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.forward[i] * -0.1;
+                        }
+                    }else{
+                        this.velocity[0] = 0;
+                        this.velocity[2] = 0;
+                    }
+                    if(mymain.checkKey("D")){
+                        this.angularVelocity[1] = 0.05;
+                    }else if(mymain.checkKey("A")){
+                        this.angularVelocity[1] = -0.05;
+                    }else{
+                        this.angularVelocity[1] = 0;
+                    }
+                    if(mymain.checkKey("Q")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.right[i] * -0.05;
+                        }
+                    }else if(mymain.checkKey("E")){
+                        for(let i = 0; i < 3; i++){
+                            this.velocity[i] = this.transform.right[i] * 0.05;
+                        }
+                    }
+                    if(mymain.checkKey(String.fromCharCode(192))){
+                        //this.shoot();
+                    }
+                    this.move();
+                }
+                render(programs){
+                    var program = programs.vertexProgram;
+                        var worldLocation = gl.getUniformLocation(program,"worldLoc");
+                        gl.uniform3fv(worldLocation,this.location);
+                        var worldRotationLocation = gl.getUniformLocation(program,"worldRotation");
+                        gl.uniform3fv(worldRotationLocation,this.rotation);
+                }
+                handleCollision(object){
+                    if(object.prefab == fireBall){
+                        this.health -= 1;
+                        mymain.removeObject(object.id);
+                    }
+                    if(object.prefab == exit){
+                        mymain.end = true;
+                        mymain.endGame();
+                    }
+                }
+            }
+            class main{
+                constructor(){
+                    this.webgl = new webgl;
+                    //Object arrays and counter
+                    this.visuals = [];
+                    this.triggers = [];
+                    this.solids = [];
+                    this.objectCounter = 0;
+                    this.keys = []; //Keys that are pressed
+                    this.frameKeys = []; //Frames when the keys were pressed
+                    this.end = true; //If the game ended
+                    this.start = false; //If the game has started
+                    this.win = false; //The player did not win
+                    this.frame = 0; // Current frame
+                    this.cam = this.addObject(0, camera, [0,0,-1], [0,0,0], [1,1,1]);
+
+                    this.addObject(0, square, [-0.5,-0.5,0], [0,0,0], [1,1,1]);
+                }
+                removeAllObjects(){
+                    this.objectCounter = 0;
+                    for(var i in this.visuals){
+                        this.removeObject(this.visuals[i].id);
+                    }
+                    for(var i in this.triggers){
+                        this.removeObject(this.triggers[i].id);
+                    }
+                    for(var i in this.solids){
+                        this.removeObject(this.solids[i].id);
+                    }
+                    this.cam = null;
+                }
+                addObject(type,prefab,location,rotation,scale){
+                    var temp = new prefab; //Create Object
+                    //Set properties
+                    var id = "ID"+this.objectCounter
+                    temp.id = id;
+                    this.objectCounter++;
+                    temp.prefab = prefab;
+                    for(let i = 0; i < 3; i++){
+                        temp.location[i] = location[i];
+                        temp.rotation[i] = rotation[i];
+                        temp.scale[i] = scale[i];
+                        temp.collisionRadius[i] *= scale[i];
+                    }
+                    //Add to array
+                    switch(type){
+                        case 0:
+                            this.visuals[id] = temp;
+                            break;
+                        case 1:
+                            this.triggers[id] = temp;
+                            break;
+                        case 2:
+                            this.solids[id] = temp;
+                            break;
+                        default:
+                            console.error("Error: "+type+" is not a valid collision type");
+                            break;
+                    }
+                    return temp;
+                }
+                removeObject(id){
+                    if(id in this.visuals){
+                        delete this.visuals[id];
+                    }
+                    if(id in this.triggers){
+                        delete this.triggers[id];
+                    }
+                    if(id in this.solids){
+                        delete this.solids[id];
+                    }
+                }
+                addLights(){
+                    var lightLocations = gl.getUniformLocation(this.webgl.program,"light_positions");
+                    this.lightHeight = 1.8;
+                    var lights = [
+                        -49.059232318784886, this.lightHeight, 50.11011141838358,
+                        -54.996948895106954, this.lightHeight, 38.2027908559037,
+                        -54.97807050159466, this.lightHeight, 14.130024669660598,
+                        -54.92076331453403, this.lightHeight, -9.712487906449537,
+                        -54.929581390549316, this.lightHeight, -33.81865863854007,
+                        -41.04333897583121, this.lightHeight, -45.812715832680645,
+                        -34.99949958746662, this.lightHeight, -45.710057978761775,
+                        30.964654693737508, this.lightHeight, -41.79116907516382,
+                        -30.91937740626432, this.lightHeight, 6.237061376468251,
+                        54.92657994410041, this.lightHeight, 26.280543093437192,
+                        -42.97556423023127, this.lightHeight, 50.16185556979357,
+                        18.978782449364704, this.lightHeight, -1.8124945186024588,
+                        22.194381028825326, this.lightHeight, 1.038392787449308,
+                        25.04988251046024, this.lightHeight, -1.8010043805158429,
+                        14.232625833188312, this.lightHeight, 46.948736155396894,
+                        14.244285671698643, this.lightHeight, 53.030430417572866
+                    ];
+                    gl.uniform3fv(lightLocations, new Float32Array(lights));
+                }
+                updateAll(){
+                    this.frame += 1;
+                    for(var i in this.visuals){
+                        this.visuals[i].update();
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].update();
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].update();
+                    }
+                }
+                clearScreen(){
+                    gl.clearColor(0,0,0,1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+                renderAll(){
+                    this.clearScreen();
+                    for(var i in this.visuals){
+                        this.visuals[i].render(this.webgl.programs);
+                    }
+                    for(var i in this.triggers){
+                        this.triggers[i].render(this.webgl.programs);
+                    }
+                    for(var i in this.solids){
+                        this.solids[i].render(this.webgl.programs);
+                    }
+                }
+                checkCollision(object1Location,object1,object2Location,object2){
+                    //Get the range of the x, y, and z collision radii
+                    var xRange = object1.collisionRadius[0] + object2.collisionRadius[0];
+                    var yRange = object1.collisionRadius[1] + object2.collisionRadius[1];
+                    var zRange = object1.collisionRadius[2] + object2.collisionRadius[2];
+                    //If x, y, and z distances are less than their collision radii put together, return true
+                    var xDistance = Math.abs(object1Location[0]-object2Location[0]);
+                    var yDistance = Math.abs(object1Location[1]-object2Location[1]);
+                    var zDistance = Math.abs(object1Location[2]-object2Location[2]);
+                    if(xDistance < xRange && yDistance < yRange && zDistance < zRange){
+                        return true;
+                    }
+                    return false;
+                }
+
+                keyDown(event){
+                    //Get input
+                    var input = String.fromCharCode(event.keyCode);
+                    //If that key was just pressed this frame, mark its frame
+                    if(this.keys[input] == undefined || this.keys[input] == false){
+                        this.frameKeys[input] = this.frame;
+                    }
+                    this.keys[input] = true;
+                }
+                keyUp(event){
+                    this.keys[String.fromCharCode(event.keyCode)] = false;
+                }
+                checkKey(key){
+                    return this.keys[key];
+                }
+                checkKeyJustPressed(key){
+                    return (this.frameKeys[key] == this.frame);
+                }
+                mouseDown(event){
+                    //this.cam.shoot();
+                }
+
+                static keyD(event){
+                    mymain.keyDown(event);
+                }
+                static keyU(event){
+                    mymain.keyUp(event);
+                }
+                static mouseD(event){
+                    mymain.mouseDown(event);
+                }
+                static mainLoop(){
+                    mymain.updateAll();
+                    mymain.renderAll();
+                    requestAnimationFrame(main.mainLoop);
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <canvas id="mycanvas" width="600" height="600">
+            YOUR BROWSER DOES NOT SUPPORT CANVAS
+        </canvas>
+        <script>
+            var canvas = document.getElementById("mycanvas");
+            var gl = canvas.getContext("webgl");
+            var mymain = new main;
+            
+            window.onkeydown = main.keyD;
+            window.onkeyup = main.keyU;
+            window.addEventListener("pointerdown",main.mouseD);
+            canvas.addEventListener('selectstart', function(e) {
+                e.preventDefault(); // stop double click text selection on mobile devices
+            });
+            requestAnimationFrame(main.mainLoop);
+        </script>
+    </body>
+</html>
