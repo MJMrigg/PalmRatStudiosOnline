@@ -772,6 +772,7 @@
 
                     //Use the vertex program from the list of webgl programs
                     var program = programs.vertexProgram;
+                    gl.useProgram(program);
 
                     //Handle Vertices
                     this.handleVertices(program);
@@ -843,6 +844,7 @@
 
                     //Use the texture program
                     var program = programs.textureProgram;
+                    gl.useProgram(program);
 
                     //Handle Vertices
                     this.handleVertices(program);
@@ -874,10 +876,10 @@
                 constructor(){
                     super();
                     this.vertices = [
-                        10,10,0,   1,0,0,
-                        10,-10,0,  1,0,0,
-                        -10,-10,0, 1,0,0,
-                        -10,10,0,  1,0,0
+                        0.1,0.1,0,   1,0,0,
+                        0.1,-0.1,0,  1,0,0,
+                        -0.1,-0.1,0, 1,0,0,
+                        -0.1,0.1,0,  1,0,0
                     ];
                     this.indices = [
                         0,1,2,
@@ -938,11 +940,15 @@
                     this.move();
                 }
                 render(programs){
-                    var program = programs.vertexProgram;
+                    for(var i in programs){
+                        var program = programs[i];
+                        gl.useProgram(program);
+
                         var worldLocation = gl.getUniformLocation(program,"worldLoc");
                         gl.uniform3fv(worldLocation,this.location);
                         var worldRotationLocation = gl.getUniformLocation(program,"worldRotation");
                         gl.uniform3fv(worldRotationLocation,this.rotation);
+                    }
                 }
                 handleCollision(object){
                     if(object.prefab == fireBall){
@@ -969,9 +975,10 @@
                     this.start = false; //If the game has started
                     this.win = false; //The player did not win
                     this.frame = 0; // Current frame
-                    this.cam = this.addObject(0, camera, [0,0,-1], [0,0,0], [1,1,1]);
+                    this.cam = this.addObject(0,camera,[0,0,-1], [0,0,0], [1,1,1]);
 
-                    this.addObject(0, square, [-0.5,-0.5,0], [0,0,0], [1,1,1]);
+                    this.addObject(0, square, [0.5,-0.5,0], [0,0,0], [1,1,1]);
+                    this.addObject(0, square, [0,0,0], [0,0,0], [1,1,1]);
                 }
                 removeAllObjects(){
                     this.objectCounter = 0;
