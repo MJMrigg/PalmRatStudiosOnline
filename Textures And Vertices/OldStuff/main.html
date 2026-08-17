@@ -440,7 +440,8 @@
                     }
                     light += a_point_light;
                 }
-                gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z)*light, 1.0);
+                //gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z)*light, 1.0);
+                gl_FragColor = vec4(vec3(textureColor.x, textureColor.y, textureColor.z), 1.0);
             }
         </script>
         <script>
@@ -880,7 +881,6 @@
                     ];
                     this.textureMode_S = gl.REPEAT;
                     this.textureMode_T = gl.REPEAT;
-                    this.isBilliboard = true;
                     this.initializeBuffers();
                 }
             }
@@ -1025,9 +1025,9 @@
                     this.frame = 0; // Current frame
                     this.cam = this.addObject(0,camera,[0,0,-1], [0,0,0], [1,1,1]);
 
-                    //this.addObject(0, square, [0.5,-0.5,0], [0,0,0], [1,1,1]);
+                    this.addObject(0, square, [0.5,-0.5,0], [0,0,0], [1,1,1]);
                     //this.addObject(0, square, [0,0,0], [0,0,0], [1,1,1]);
-                    this.addObject(0, squareTexture, [0,0,0], [0,0,0], [1,1,1]);
+                    this.addObject(0, squareTexture, [-0.5,0.5,0], [0,0,0], [1,1,1]);
                 }
                 removeAllObjects(){
                     this.objectCounter = 0;
