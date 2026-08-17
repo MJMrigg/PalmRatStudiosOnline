@@ -818,17 +818,6 @@
                     gl.bindTexture(gl.TEXTURE_2D, this.textureBuffer);
                 }
 
-                /*handleVertices(program){
-                    var positionAttributeLocation = gl.getAttribLocation(program,"a_position");
-                    var size = 3;
-                    var type = gl.FLOAT;
-                    var normalize = false;
-                    var stride = 5*Float32Array.BYTES_PER_ELEMENT;
-                    var offset = 0;
-                    gl.enableVertexAttribArray(positionAttributeLocation);
-                    gl.vertexAttribPointer(positionAttributeLocation,size,type,normalize,stride,offset)
-                }*/
-
                 //Overriden to handle the texture stuff
                 handleColors(program){
                     var textureAttributeLocation = gl.getAttribLocation(program,"texCord");
@@ -880,10 +869,10 @@
                     super();
                     this.texture = palmRatTexture;
                     this.vertices = [
-                        0.1,0.1,0,      0,0,
-                        -0.1,0.1,0,     1,0,
-                        -0.1,-0.1,0,    1,1,
-                        0.1,-0.1,0,     0,1,
+                        0.5,0.5,0,      1,0,
+                        -0.5,0.5,0,     0,0,
+                        -0.5,-0.5,0,    0,1,
+                        0.5,-0.5,0,     1,1,
                     ];
                     this.indices = [
                         0,1,2,
@@ -1036,7 +1025,7 @@
                     this.frame = 0; // Current frame
                     this.cam = this.addObject(0,camera,[0,0,-1], [0,0,0], [1,1,1]);
 
-                    this.addObject(0, square, [0.5,-0.5,0], [0,0,0], [1,1,1]);
+                    //this.addObject(0, square, [0.5,-0.5,0], [0,0,0], [1,1,1]);
                     //this.addObject(0, square, [0,0,0], [0,0,0], [1,1,1]);
                     this.addObject(0, squareTexture, [0,0,0], [0,0,0], [1,1,1]);
                 }
