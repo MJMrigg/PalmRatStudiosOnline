@@ -416,7 +416,7 @@
             void main(){
                 //Apply the texture
                 vec4 textureColor = texture2D(sampler,v_textCord); //Sample through the texture
-                if(textureColor.w < 1.0){ //If that part of the image was transparent
+                if(textureColor.w <= 0.0){ //If that part of the image was transparent
                     discard;
                 }
                 float light = 1.0;
@@ -701,18 +701,11 @@
                     this.primitiveType = gl.TRIANGLES; //Default primitive type
                     this.vertices = [];
                     this.indices = [];
-                    //this.texture = null;
-                    //Width and Height of the texture(64 by default)
-                    this.width = 64;
-                    this.height = 64;
                     //Buffers are null since there is no data buffered to them yet
                     this.vertexBuffer = null;
                     //this.textureBuffer = null;
                     this.indexBuffer = null;
                     this.collisionRadius = [];
-                    /*this.isBilliboard = false; //Objects are not billiboards by default
-                    this.textureMode_S = null; //How the texture is rendered for S
-                    this.textureMode_T = null; //How the texture is rendered for T*/
                     this.colorSize = 3; //Vertices have 3 color coordinates, R, G, and B
                 }
 
@@ -879,6 +872,8 @@
                         0,1,2,
                         0,3,2
                     ];
+                    this.width=64;
+                    this.height=64;
                     this.textureMode_S = gl.REPEAT;
                     this.textureMode_T = gl.REPEAT;
                     this.initializeBuffers();
