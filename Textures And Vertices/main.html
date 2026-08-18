@@ -801,10 +801,9 @@
                     //Load vertex and index buffers
                     super.initializeBuffers();
                     //Load all the data onto the texture buffer now that the texture has been defined
-                    this.texture.setAttribute('crossorigin','anonymous');
+                    this.textureBuffer = gl.createTexture();
                     gl.bindTexture(gl.TEXTURE_2D, this.textureBuffer);
-                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,/*this.width,this.height,0,*/gl.RGBA,gl.UNSIGNED_BYTE,this.texture);
-                    gl.generateMipmap(gl.TEXTURE_2D);
+                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.width,this.height,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array(this.texture));
                 }
 
                 //Rebind the texture buffer as well
@@ -867,14 +866,7 @@
             class squareTexture extends textureObject {
                 constructor(){
                     super();
-                    this.texture = new Image();
-                    this.texture.setAttribute('crossorigin','anonymous')
-                    this.textureBuffer = gl.createTexture();
-                    this.texture.src = './MooseRat.png';
-                    this.texture.onload = () => {
-                        console.log(this.texture.blob);
-                        this.initializeBuffers();
-                    };
+                    this.texture = palmRatTexture;
                     this.vertices = [
                         0.5,0.5,0,      1,0,
                         -0.5,0.5,0,     0,0,
@@ -889,6 +881,7 @@
                     this.height=64;
                     this.textureMode_S = gl.CLAMP_TO_EDGE;
                     this.textureMode_T = gl.CLAMP_TO_EDGE;
+                    this.initializeBuffers();
                 }
             }
 
